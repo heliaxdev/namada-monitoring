@@ -2,12 +2,13 @@ use std::str::FromStr;
 
 use anyhow::Context;
 use futures::FutureExt;
-use namada_sdk::{
-    hash::Hash, io::Client, rpc, state::Key,
-};
+use namada_sdk::{hash::Hash, io::Client, rpc, state::Key};
 use tendermint_rpc::{HttpClient, Url};
 
-use crate::shared::{checksums::Checksums, namada::{Block, Epoch, Height}};
+use crate::shared::{
+    checksums::Checksums,
+    namada::{Block, Epoch, Height},
+};
 
 pub struct Rpc {
     pub clients: Vec<HttpClient>,
@@ -59,16 +60,13 @@ impl Rpc {
             .context("Should be able to get epoch")
     }
 
-    pub async fn query_next_block(
+    pub async fn query_block(
         &self,
-        block_height: Option<Height>,
+        block_height: Height,
         checksums: &Checksums,
         epoch: Epoch,
     ) -> anyhow::Result<Block> {
-        let futures = self.clients.iter().map(|client| match block_height {
-            Some(height) => client.block(height),
-            None => client.latest_block().boxed(),
-        });
+        let futures = self.clients.iter().map(|client| client.block(block_height));
 
         let (res, _ready_future_index, _remaining_futures) =
             futures::future::select_all(futures).await;

@@ -2,8 +2,8 @@ use std::{collections::HashMap, num::NonZeroUsize};
 
 use lru::LruCache;
 use prometheus_exporter::prometheus::{
-    core::{AtomicF64, GenericCounter, GenericGauge},
-    register_counter, register_counter_with_registry, register_gauge, Registry,
+    core::{AtomicF64, AtomicU64, GenericCounter, GenericGauge},
+    register_counter, register_counter_with_registry, register_gauge, Counter, Opts, Registry,
 };
 
 use crate::shared::{
@@ -22,8 +22,9 @@ pub struct State {
 
 #[derive(Debug, Clone)]
 pub struct PrometheusMetrics {
-    pub block_height_counter: GenericCounter<AtomicF64>,
-    pub epoch_counter: GenericCounter<AtomicF64>,
+    pub block_height_counter: GenericCounter<AtomicU64>,
+    pub epoch_counter: GenericCounter<AtomicU64>,
+    registry: Registry,
 }
 
 impl Default for PrometheusMetrics {
@@ -34,14 +35,24 @@ impl Default for PrometheusMetrics {
 
 impl PrometheusMetrics {
     pub fn new() -> Self {
+        let registry = Registry::new_custom(None, None).expect("Failed to create registry");
+
+        let block_height_counter =
+            GenericCounter::<AtomicU64>::new("block_height", "the latest block height recorded")
+                .expect("unable to create counter block_height");
+
+        let epoch_counter = GenericCounter::<AtomicU64>::new("epoch", "the latest epoch recorded")
+            .expect("unable to create counter epoch");
+
+        registry
+            .register(Box::new(block_height_counter.clone()))
+            .unwrap();
+        registry.register(Box::new(epoch_counter.clone())).unwrap();
+
         Self {
-            block_height_counter: register_counter!(
-                "block_height",
-                "the latest block height recorded",
-            )
-            .expect("unable to create counter block_height"),
-            epoch_counter: register_counter!("epoch", "the latest epoch recorded",)
-                .expect("unable to create counter epoch"),
+            block_height_counter: block_height_counter,
+            epoch_counter: epoch_counter,
+            registry,
         }
     }
 
@@ -63,5 +74,37 @@ impl State {
             blocks: LruCache::new(NonZeroUsize::new(1024).unwrap()),
             metrics: PrometheusMetrics::new(),
         }
+    }
+
+    pub fn next_block_height(&self) -> Height {
+        self.latest_block_height
+            .map(|height| height + 1)
+            .unwrap_or(1)
+    }
+
+    pub fn update(&mut self, block: Block) {
+        if let Some(height) = self.latest_block_height {
+            self.metrics
+                .block_height_counter
+                .inc_by(block.height - height);
+        } else {
+            self.metrics.block_height_counter.inc_by(block.height);
+        }
+        self.latest_block_height = Some(block.height);
+
+        if let Some(epoch) = self.latest_epoch {
+            self.metrics
+                .block_height_counter
+                .inc_by(block.epoch - epoch);
+        } else {
+            self.metrics.block_height_counter.inc_by(block.epoch);
+        }
+        self.latest_epoch = Some(block.epoch);
+
+        self.blocks.put(block.height, block);
+    }
+
+    pub fn prometheus_registry(&self) -> Registry {
+        self.metrics.registry.clone()
     }
 }

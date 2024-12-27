@@ -10,6 +10,7 @@ use std::{net::SocketAddr, thread::sleep, time::Duration};
 use anyhow::Context;
 use clap::Parser;
 use config::AppConfig;
+use prometheus_exporter::prometheus::Registry;
 use rpc::Rpc;
 use shared::checksums::Checksums;
 use state::State;
@@ -18,8 +19,6 @@ use state::State;
 async fn main() -> anyhow::Result<()> {
     let config = AppConfig::parse();
     config.log.init();
-
-    start_prometheus_exporter(config.prometheus_port)?;
 
     let rpc = Rpc::new(config.cometbft_urls);
 
@@ -32,18 +31,31 @@ async fn main() -> anyhow::Result<()> {
         checksums.add(code_path, code);
     }
 
-    let state = State::new(checksums);
+    let mut state = State::new(checksums);
+    let registry = state.prometheus_registry();
+
+    start_prometheus_exporter(registry, config.prometheus_port)?;
 
     loop {
-        println!("Test...");
-        sleep(Duration::from_secs(3));
+        let block_height = state.next_block_height();
+        let epoch = rpc.query_current_epoch(block_height).await?.unwrap_or(0);
+        let block = rpc
+            .query_block(block_height, &state.checksums, epoch)
+            .await?;
+
+        state.update(block);
+
+        tracing::info!("Done block {}", block_height);
     }
 }
 
-fn start_prometheus_exporter(port: u64) -> anyhow::Result<()> {
+fn start_prometheus_exporter(registry: Registry, port: u64) -> anyhow::Result<()> {
     let addr_raw = format!("0.0.0.0:{}", port);
     let addr: SocketAddr = addr_raw.parse().context("can not parse listen addr")?;
-    prometheus_exporter::start(addr).context("can not start exporter")?;
+
+    let mut builder = prometheus_exporter::Builder::new(addr);
+    builder.with_registry(registry);
+    builder.start().context("can not start exporter")?;
 
     Ok(())
 }
