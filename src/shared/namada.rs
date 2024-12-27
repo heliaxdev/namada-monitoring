@@ -168,7 +168,7 @@ pub struct Inner {
 }
 
 impl Block {
-    pub fn from(response: Response, checksums: Checksums, epoch: Epoch) -> Self {
+    pub fn from(response: Response, checksums: &Checksums, epoch: Epoch) -> Self {
         Self {
             height: response.block.header.height.value(),
             epoch: epoch,
