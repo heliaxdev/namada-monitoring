@@ -8,19 +8,19 @@ use serde::{Deserialize, Serialize};
 pub struct AppRiseWrapper<T: Serialize> {
     pub urls: String,
     #[serde(flatten)]
-    pub body: T
+    pub body: T,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppRiseSlackPayload {
-    pub body: String
+    pub body: String,
 }
 
 pub struct AppRise {
     pub url: Url,
     pub client: Client,
     pub slack_webhook_secret: String,
-    pub channel: String
+    pub channel: String,
 }
 
 impl AppRise {
@@ -29,7 +29,7 @@ impl AppRise {
             url: Url::from_str(&url).unwrap(),
             client: reqwest::Client::new(),
             slack_webhook_secret: slack_secret,
-            channel: slack_channel
+            channel: slack_channel,
         }
     }
 
@@ -39,8 +39,13 @@ impl AppRise {
             urls: format!("slack:///{}/#{}", self.slack_webhook_secret, self.channel),
             body: payload,
         };
-        
-        self.client.post(url).json(&payload).send().await.context("Should be able to send slack notification")?;
+
+        self.client
+            .post(url)
+            .json(&payload)
+            .send()
+            .await
+            .context("Should be able to send slack notification")?;
 
         Ok(())
     }

@@ -22,6 +22,10 @@ tracing = { version = "0.1.40" }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 chrono = "0.4.38"
 anyhow = "1.0.95"
+lru = "0.12.5"
+bimap = { version = "0.6.3", features = ["serde"] }
+prometheus_exporter = "0.8.5"
+subtle-encoding = "0.5.1"
 
 [build-dependencies]
 vergen = { version = "8.0.0", features = ["build", "git", "gitcl"] }
