@@ -171,7 +171,7 @@ impl Block {
     pub fn from(response: Response, checksums: &Checksums, epoch: Epoch) -> Self {
         Self {
             height: response.block.header.height.value(),
-            epoch: epoch,
+            epoch,
             timestamp: response.block.header.time.unix_timestamp(),
             transactions: response
                 .block

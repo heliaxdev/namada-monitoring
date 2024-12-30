@@ -1,12 +1,9 @@
 pub mod block;
 pub mod epoch;
 
-
-
 use block::BlockHeigtCheck;
 use epoch::EpochCheck;
 
-use crate::state::State;
 
 pub enum Checks {
     BlockHeightCheck(BlockHeigtCheck),
@@ -16,6 +13,6 @@ pub enum Checks {
 pub fn all_checks() -> Vec<Checks> {
     vec![
         Checks::BlockHeightCheck(BlockHeigtCheck::default()),
-        Checks::EpochCheck(EpochCheck::default())
+        Checks::EpochCheck(EpochCheck::default()),
     ]
 }

@@ -1,9 +1,9 @@
-use std::{collections::HashMap, num::NonZeroUsize};
+use std::num::NonZeroUsize;
 
 use lru::LruCache;
 use prometheus_exporter::prometheus::{
-    core::{AtomicF64, AtomicU64, GenericCounter, GenericGauge},
-    register_counter, register_counter_with_registry, register_gauge, Counter, Opts, Registry,
+    core::{AtomicU64, GenericCounter},
+    Registry,
 };
 
 use crate::shared::{
@@ -50,8 +50,8 @@ impl PrometheusMetrics {
         registry.register(Box::new(epoch_counter.clone())).unwrap();
 
         Self {
-            block_height_counter: block_height_counter,
-            epoch_counter: epoch_counter,
+            block_height_counter,
+            epoch_counter,
             registry,
         }
     }
