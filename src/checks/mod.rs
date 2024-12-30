@@ -13,10 +13,6 @@ pub enum Checks {
     EpochCheck(EpochCheck),
 }
 
-pub trait Check {
-    async fn run(&self, pre_state: &State, post_state: &State) -> anyhow::Result<()>;
-}
-
 pub fn all_checks() -> Vec<Checks> {
     vec![
         Checks::BlockHeightCheck(BlockHeigtCheck::default()),

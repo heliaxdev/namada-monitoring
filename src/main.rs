@@ -10,7 +10,7 @@ use std::net::SocketAddr;
 
 use anyhow::Context;
 use apprise::AppRise;
-use checks::{all_checks, Check};
+use checks::all_checks;
 use clap::Parser;
 use config::AppConfig;
 use prometheus_exporter::prometheus::Registry;
