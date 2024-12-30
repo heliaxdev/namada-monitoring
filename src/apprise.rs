@@ -19,12 +19,12 @@ pub struct AppRiseSlackPayload {
 pub struct AppRise {
     pub url: Url,
     pub client: Client,
-    pub slack_webhook_secret: String,
-    pub channel: String,
+    pub slack_webhook_secret: Option<String>,
+    pub channel: Option<String>,
 }
 
 impl AppRise {
-    pub fn new(url: String, slack_secret: String, slack_channel: String) -> Self {
+    pub fn new(url: String, slack_secret: Option<String>, slack_channel: Option<String>) -> Self {
         Self {
             url: Url::from_str(&url).unwrap(),
             client: reqwest::Client::new(),
@@ -33,11 +33,20 @@ impl AppRise {
         }
     }
 
-    pub async fn send_to_slack(&self, payload: &AppRiseSlackPayload) -> anyhow::Result<()> {
+    pub async fn send_to_slack(&self, payload: String) -> anyhow::Result<()> {
+        let data = AppRiseSlackPayload { body: payload };
+        let (token, channel) = if let (Some(token), Some(channel)) =
+            (self.slack_webhook_secret.clone(), self.channel.clone())
+        {
+            (token, channel)
+        } else {
+            return Ok(());
+        };
+
         let url = self.url.join("/notify").context("Url should be valid")?;
         let payload = AppRiseWrapper {
-            urls: format!("slack:///{}/#{}", self.slack_webhook_secret, self.channel),
-            body: payload,
+            urls: format!("slack:///{}/#{}", token, channel),
+            body: data,
         };
 
         self.client
