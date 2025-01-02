@@ -17,6 +17,9 @@ pub struct AppConfig {
     #[clap(long, env, default_value_t = 9184)]
     pub prometheus_port: u64,
 
+    #[clap(long, env, default_value_t = 1)]
+    pub initial_block_height: u64,
+
     #[clap(long, env, default_value_t = 5)]
     pub sleep_for: u64,
 

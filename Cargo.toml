@@ -26,6 +26,8 @@ lru = "0.12.5"
 bimap = { version = "0.6.3", features = ["serde"] }
 prometheus_exporter = "0.8.5"
 subtle-encoding = "0.5.1"
+thiserror = "1.0.56"
+tokio-retry2 = { version = "0.5", features = ["jitter", "tracing"] }
 
 [build-dependencies]
 vergen = { version = "8.0.0", features = ["build", "git", "gitcl"] }

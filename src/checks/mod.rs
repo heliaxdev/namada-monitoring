@@ -6,11 +6,10 @@ use block::BlockHeigtCheck;
 use epoch::EpochCheck;
 use total_supply_native::TotalSupplyNativeCheck;
 
-
 pub enum Checks {
     BlockHeightCheck(BlockHeigtCheck),
     EpochCheck(EpochCheck),
-    TotalSupplyNative(TotalSupplyNativeCheck)
+    TotalSupplyNative(TotalSupplyNativeCheck),
 }
 
 pub fn all_checks() -> Vec<Checks> {

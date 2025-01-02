@@ -56,7 +56,9 @@ impl PrometheusMetrics {
             .register(Box::new(block_height_counter.clone()))
             .unwrap();
         registry.register(Box::new(epoch_counter.clone())).unwrap();
-        registry.register(Box::new(total_supply_native_token.clone())).unwrap();
+        registry
+            .register(Box::new(total_supply_native_token.clone()))
+            .unwrap();
 
         Self {
             block_height_counter,
@@ -76,9 +78,9 @@ impl PrometheusMetrics {
 }
 
 impl State {
-    pub fn new(checksums: Checksums) -> Self {
+    pub fn new(checksums: Checksums, block_height: u64) -> Self {
         Self {
-            latest_block_height: None,
+            latest_block_height: Some(block_height),
             latest_epoch: None,
             latest_total_supply_native: None,
             checksums,
@@ -115,9 +117,11 @@ impl State {
         if let Some(total_supply) = self.latest_total_supply_native {
             self.metrics
                 .total_supply_native_token
-                .inc_by(total_supply - total_supply);
+                .inc_by(total_supply_native - total_supply);
         } else {
-            self.metrics.total_supply_native_token.inc_by(total_supply_native);
+            self.metrics
+                .total_supply_native_token
+                .inc_by(total_supply_native);
         }
         self.latest_total_supply_native = Some(total_supply_native);
 

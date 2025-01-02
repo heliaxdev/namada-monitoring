@@ -3,7 +3,7 @@ use std::str::FromStr;
 use anyhow::Context;
 use futures::FutureExt;
 use namada_sdk::{
-    address::Address as NamadaAddress, hash::Hash, ibc::context::client, io::Client, rpc,
+    address::Address as NamadaAddress, hash::Hash, io::Client, rpc,
     state::Key,
 };
 use tendermint_rpc::{HttpClient, Url};
