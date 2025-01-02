@@ -2,8 +2,7 @@ use std::num::NonZeroUsize;
 
 use lru::LruCache;
 use prometheus_exporter::prometheus::{
-    core::{AtomicU64, GenericCounter},
-    Registry,
+    core::{AtomicU64, GenericCounter}, Histogram, HistogramOpts, Registry
 };
 
 use crate::shared::{
@@ -26,6 +25,7 @@ pub struct PrometheusMetrics {
     pub block_height_counter: GenericCounter<AtomicU64>,
     pub epoch_counter: GenericCounter<AtomicU64>,
     pub total_supply_native_token: GenericCounter<AtomicU64>,
+    pub transaction_size: Histogram,
     registry: Registry,
 }
 
@@ -52,6 +52,15 @@ impl PrometheusMetrics {
         )
         .expect("unable to create counter total supply");
 
+        let transaction_size_opts = HistogramOpts::new(
+            "transaction_size_bytes",
+            "The sizes of transactions in bytes"
+        )
+        .buckets(vec![
+            10.0, 50.0, 100.0, 500.0, 1000.0, 5000.0, 10000.0, 50000.0,
+        ]);
+        let transaction_size = Histogram::with_opts(transaction_size_opts).expect("unable to create histogram transaction sizes");;
+
         registry
             .register(Box::new(block_height_counter.clone()))
             .unwrap();
@@ -59,11 +68,13 @@ impl PrometheusMetrics {
         registry
             .register(Box::new(total_supply_native_token.clone()))
             .unwrap();
-
+        registry.register(Box::new(transaction_size.clone())).unwrap();
+        
         Self {
             block_height_counter,
             epoch_counter,
             total_supply_native_token,
+            transaction_size,
             registry,
         }
     }
@@ -124,6 +135,12 @@ impl State {
                 .inc_by(total_supply_native);
         }
         self.latest_total_supply_native = Some(total_supply_native);
+
+        for tx in &block.transactions {
+            for inner in &tx.inners {
+                self.metrics.transaction_size.observe(inner.kind.size() as f64);    
+            }
+        }
 
         self.blocks.put(block.height, block);
     }

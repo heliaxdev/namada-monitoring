@@ -96,6 +96,9 @@ async fn main() -> anyhow::Result<()> {
                         }
                         checks::Checks::TotalSupplyNative(check) => {
                             check.run(&pre_state, &post_state).await
+                        },
+                        checks::Checks::TxSize(check) => {
+                            check.run(&pre_state, &post_state).await
                         }
                     };
                     if let Err(error) = check_res {
