@@ -26,6 +26,7 @@ pub struct PrometheusMetrics {
     pub epoch_counter: GenericCounter<AtomicU64>,
     pub total_supply_native_token: GenericCounter<AtomicU64>,
     pub transaction_size: Histogram,
+    pub transaction_inner_size: Histogram,
     registry: Registry,
 }
 
@@ -59,7 +60,16 @@ impl PrometheusMetrics {
         .buckets(vec![
             10.0, 50.0, 100.0, 500.0, 1000.0, 5000.0, 10000.0, 50000.0,
         ]);
-        let transaction_size = Histogram::with_opts(transaction_size_opts).expect("unable to create histogram transaction sizes");;
+        let transaction_size = Histogram::with_opts(transaction_size_opts).expect("unable to create histogram transaction sizes");
+
+        let transaction_inner_size_opts = HistogramOpts::new(
+            "transaction_inners",
+            "The number of inner tx for a wrapper"
+        )
+        .buckets(vec![
+            2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0
+        ]);
+        let transaction_inner_size = Histogram::with_opts(transaction_inner_size_opts).expect("unable to create histogram transaction sizes");
 
         registry
             .register(Box::new(block_height_counter.clone()))
@@ -75,6 +85,7 @@ impl PrometheusMetrics {
             epoch_counter,
             total_supply_native_token,
             transaction_size,
+            transaction_inner_size,
             registry,
         }
     }
@@ -135,6 +146,10 @@ impl State {
                 .inc_by(total_supply_native);
         }
         self.latest_total_supply_native = Some(total_supply_native);
+
+        for tx in &block.transactions {
+            self.metrics.transaction_inner_size.observe(tx.inners.len() as f64);
+        }
 
         for tx in &block.transactions {
             for inner in &tx.inners {
