@@ -15,6 +15,7 @@ use crate::shared::{
 pub struct State {
     pub latest_block_height: Option<u64>,
     pub latest_epoch: Option<u64>,
+    pub latest_total_supply_native: Option<u64>,
     pub checksums: Checksums,
     pub blocks: LruCache<Height, Block>,
     pub metrics: PrometheusMetrics,
@@ -24,6 +25,7 @@ pub struct State {
 pub struct PrometheusMetrics {
     pub block_height_counter: GenericCounter<AtomicU64>,
     pub epoch_counter: GenericCounter<AtomicU64>,
+    pub total_supply_native_token: GenericCounter<AtomicU64>,
     registry: Registry,
 }
 
@@ -44,14 +46,22 @@ impl PrometheusMetrics {
         let epoch_counter = GenericCounter::<AtomicU64>::new("epoch", "the latest epoch recorded")
             .expect("unable to create counter epoch");
 
+        let total_supply_native_token = GenericCounter::<AtomicU64>::new(
+            "total_supply_native_token",
+            "the latest total supply native token recorded",
+        )
+        .expect("unable to create counter total supply");
+
         registry
             .register(Box::new(block_height_counter.clone()))
             .unwrap();
         registry.register(Box::new(epoch_counter.clone())).unwrap();
+        registry.register(Box::new(total_supply_native_token.clone())).unwrap();
 
         Self {
             block_height_counter,
             epoch_counter,
+            total_supply_native_token,
             registry,
         }
     }
@@ -70,6 +80,7 @@ impl State {
         Self {
             latest_block_height: None,
             latest_epoch: None,
+            latest_total_supply_native: None,
             checksums,
             blocks: LruCache::new(NonZeroUsize::new(1024).unwrap()),
             metrics: PrometheusMetrics::new(),
@@ -82,7 +93,7 @@ impl State {
             .unwrap_or(1)
     }
 
-    pub fn update(&mut self, block: Block) {
+    pub fn update(&mut self, block: Block, total_supply_native: u64) {
         if let Some(height) = self.latest_block_height {
             self.metrics
                 .block_height_counter
@@ -100,6 +111,15 @@ impl State {
             self.metrics.block_height_counter.inc_by(block.epoch);
         }
         self.latest_epoch = Some(block.epoch);
+
+        if let Some(total_supply) = self.latest_total_supply_native {
+            self.metrics
+                .total_supply_native_token
+                .inc_by(total_supply - total_supply);
+        } else {
+            self.metrics.total_supply_native_token.inc_by(total_supply_native);
+        }
+        self.latest_total_supply_native = Some(total_supply_native);
 
         self.blocks.put(block.height, block);
     }

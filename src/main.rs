@@ -44,18 +44,21 @@ async fn main() -> anyhow::Result<()> {
     loop {
         let pre_state = state.clone();
 
+        let native_token = rpc.query_native_token().await?;
         let block_height = state.next_block_height();
         let epoch = rpc.query_current_epoch(block_height).await?.unwrap_or(0);
         let block = rpc
             .query_block(block_height, &state.checksums, epoch)
             .await?;
+        let total_supply_native = rpc.query_total_supply(&native_token).await?;
 
-        state.update(block);
+        state.update(block, total_supply_native);
 
         for check_kind in all_checks() {
             let check_res = match check_kind {
                 checks::Checks::BlockHeightCheck(check) => check.run(&pre_state, &state).await,
                 checks::Checks::EpochCheck(check) => check.run(&pre_state, &state).await,
+                checks::Checks::TotalSupplyNative(check) => check.run(&pre_state, &state).await,
             };
             if let Err(error) = check_res {
                 tracing::error!("Error: {}", error.to_string());

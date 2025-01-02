@@ -14,6 +14,7 @@ use super::checksums::Checksums;
 pub type Height = u64;
 pub type Epoch = u64;
 pub type TxId = String;
+pub type Address = String;
 
 #[derive(Clone, Debug)]
 pub struct Block {

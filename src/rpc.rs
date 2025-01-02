@@ -2,12 +2,15 @@ use std::str::FromStr;
 
 use anyhow::Context;
 use futures::FutureExt;
-use namada_sdk::{hash::Hash, io::Client, rpc, state::Key};
+use namada_sdk::{
+    address::Address as NamadaAddress, hash::Hash, ibc::context::client, io::Client, rpc,
+    state::Key,
+};
 use tendermint_rpc::{HttpClient, Url};
 
 use crate::shared::{
     checksums::Checksums,
-    namada::{Block, Epoch, Height},
+    namada::{Address, Block, Epoch, Height},
 };
 
 pub struct Rpc {
@@ -73,5 +76,34 @@ impl Rpc {
 
         res.map(|response| Block::from(response, checksums, epoch))
             .context("Should be able to query for block")
+    }
+
+    pub async fn query_native_token(&self) -> anyhow::Result<Address> {
+        let futures = self
+            .clients
+            .iter()
+            .map(|client| rpc::query_native_token(client).boxed());
+
+        let (res, _ready_future_index, _remaining_futures) =
+            futures::future::select_all(futures).await;
+
+        res.context("Should be able to query native token")
+            .map(|address| address.to_string())
+    }
+
+    pub async fn query_total_supply(&self, native_token: &str) -> anyhow::Result<u64> {
+        let address = NamadaAddress::from_str(native_token)
+            .context("Should be able to convert string to address")?;
+
+        let futures = self
+            .clients
+            .iter()
+            .map(|client| rpc::get_token_total_supply(client, &address).boxed());
+
+        let (res, _ready_future_index, _remaining_futures) =
+            futures::future::select_all(futures).await;
+
+        res.context("Should be able to query native token")
+            .map(|amount| amount.raw_amount().as_u64())
     }
 }
