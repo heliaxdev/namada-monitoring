@@ -80,6 +80,7 @@ async fn main() -> anyhow::Result<()> {
                     .query_total_supply(&native_token)
                     .await
                     .into_retry_error()?;
+                let (future_bonds, future_unbonds) = rpc.query_future_bonds_and_unbonds(epoch).await.into_retry_error()?;
 
                 let mut post_state_lock = state.write().await;
                 post_state_lock.update(block, total_supply_native);

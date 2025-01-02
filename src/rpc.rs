@@ -3,7 +3,7 @@ use std::str::FromStr;
 use anyhow::Context;
 use futures::FutureExt;
 use namada_sdk::{
-    address::Address as NamadaAddress, hash::Hash, io::Client, rpc,
+    address::Address as NamadaAddress, hash::Hash, io::Client, rpc, state::Epoch as NamadaEpoch,
     state::Key,
 };
 use tendermint_rpc::{HttpClient, Url};
@@ -105,5 +105,29 @@ impl Rpc {
 
         res.context("Should be able to query native token")
             .map(|amount| amount.raw_amount().as_u64())
+    }
+
+    pub async fn query_future_bonds_and_unbonds(&self, epoch: Epoch) -> anyhow::Result<(u64, u64)> {
+        let pipeline_epoch = NamadaEpoch(epoch + 2);
+        let futures = self.clients.iter().map(|client| {
+            rpc::enriched_bonds_and_unbonds(client, pipeline_epoch, &None, &None).boxed()
+        });
+
+        let (res, _ready_future_index, _remaining_futures) =
+            futures::future::select_all(futures).await;
+
+        res.context("Should be able to query native token")
+            .map(|summary| {
+                (
+                    summary
+                        .bonds_total_active()
+                        .map(|amount| amount.raw_amount().as_u64())
+                        .unwrap_or(0),
+                    summary
+                        .unbonds_total_active()
+                        .map(|amount| amount.raw_amount().as_u64())
+                        .unwrap_or(0),
+                )
+            })
     }
 }
