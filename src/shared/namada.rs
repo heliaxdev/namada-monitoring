@@ -1,4 +1,6 @@
-use namada_sdk::borsh::BorshDeserialize;
+use std::fmt::Display;
+
+use namada_sdk::borsh::{BorshDeserialize, BorshSerializeExt};
 use namada_sdk::governance::{InitProposalData, VoteProposalData};
 use namada_sdk::ibc::{decode_message, IbcMessage};
 use namada_sdk::key::common::PublicKey;
@@ -47,6 +49,28 @@ pub enum InnerKind {
     RevealPk(Option<PublicKey>),
     BecomeValidator(Option<BecomeValidator>),
     Unknown(Vec<u8>),
+}
+
+impl Display for InnerKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InnerKind::TransparentTransfer(_) => write!(f, "transparent_transfer"),
+            InnerKind::ShieldedTransfer(_) => write!(f, "shielded_transfer"),
+            InnerKind::IbcMsgTransfer(_) => write!(f, "ibc"),
+            InnerKind::Bond(_) => write!(f, "bond"),
+            InnerKind::Redelegation(_) => write!(f, "redelegate"),
+            InnerKind::Unbond(_) => write!(f, "unbond"),
+            InnerKind::Withdraw(_) => write!(f, "withdraw"),
+            InnerKind::ClaimRewards(_) => write!(f, "claim_rewards"),
+            InnerKind::ProposalVote(_) => write!(f, "vote_proposal"),
+            InnerKind::InitProposal(_) => write!(f, "init_proposal"),
+            InnerKind::MetadataChange(_) => write!(f, "metadata_change"),
+            InnerKind::CommissionChange(_) => write!(f, "commission_change"),
+            InnerKind::RevealPk(_) => write!(f, "reveal_public_key"),
+            InnerKind::BecomeValidator(_) => write!(f, "become_validator"),
+            InnerKind::Unknown(_) => write!(f, "unknown"),
+        }
+    }
 }
 
 impl InnerKind {
@@ -158,6 +182,74 @@ impl InnerKind {
                 InnerKind::BecomeValidator(data)
             }
             _ => InnerKind::Unknown(data.to_vec()),
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        match self {
+            InnerKind::TransparentTransfer(tx) => tx
+                .clone()
+                .map(|data| data.serialize_to_vec().len())
+                .unwrap_or(0),
+            InnerKind::ShieldedTransfer(tx) => tx
+                .clone()
+                .map(|data| data.serialize_to_vec().len())
+                .unwrap_or(0),
+            InnerKind::IbcMsgTransfer(tx) => tx
+                .clone()
+                .map(|data| match data {
+                    IbcMessage::Envelope(msg_envelope) => msg_envelope.serialize_to_vec().len(),
+                    IbcMessage::Transfer(msg_transfer) => msg_transfer.serialize_to_vec().len(),
+                    IbcMessage::NftTransfer(msg_nft_transfer) => {
+                        msg_nft_transfer.serialize_to_vec().len()
+                    }
+                })
+                .unwrap_or(0),
+            InnerKind::Bond(tx) => tx
+                .clone()
+                .map(|data| data.serialize_to_vec().len())
+                .unwrap_or(0),
+            InnerKind::Redelegation(tx) => tx
+                .clone()
+                .map(|data| data.serialize_to_vec().len())
+                .unwrap_or(0),
+            InnerKind::Unbond(tx) => tx
+                .clone()
+                .map(|data| data.serialize_to_vec().len())
+                .unwrap_or(0),
+            InnerKind::Withdraw(tx) => tx
+                .clone()
+                .map(|data| data.serialize_to_vec().len())
+                .unwrap_or(0),
+            InnerKind::ClaimRewards(tx) => tx
+                .clone()
+                .map(|data| data.serialize_to_vec().len())
+                .unwrap_or(0),
+            InnerKind::ProposalVote(tx) => tx
+                .clone()
+                .map(|data| data.serialize_to_vec().len())
+                .unwrap_or(0),
+            InnerKind::InitProposal(tx) => tx
+                .clone()
+                .map(|data| data.serialize_to_vec().len())
+                .unwrap_or(0),
+            InnerKind::MetadataChange(tx) => tx
+                .clone()
+                .map(|data| data.serialize_to_vec().len())
+                .unwrap_or(0),
+            InnerKind::CommissionChange(tx) => tx
+                .clone()
+                .map(|data| data.serialize_to_vec().len())
+                .unwrap_or(0),
+            InnerKind::RevealPk(tx) => tx
+                .clone()
+                .map(|data| data.serialize_to_vec().len())
+                .unwrap_or(0),
+            InnerKind::BecomeValidator(tx) => tx
+                .clone()
+                .map(|data| data.serialize_to_vec().len())
+                .unwrap_or(0),
+            InnerKind::Unknown(tx) => tx.len(),
         }
     }
 }
