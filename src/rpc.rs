@@ -108,7 +108,7 @@ impl Rpc {
     }
 
     pub async fn query_future_bonds_and_unbonds(&self, epoch: Epoch) -> anyhow::Result<(u64, u64)> {
-        let pipeline_epoch = NamadaEpoch(epoch + 2);
+        let pipeline_epoch = NamadaEpoch(epoch + 1);
         let futures = self.clients.iter().map(|client| {
             rpc::enriched_bonds_and_unbonds(client, pipeline_epoch, &None, &None).boxed()
         });

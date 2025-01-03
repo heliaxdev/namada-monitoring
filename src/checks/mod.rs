@@ -12,7 +12,7 @@ pub enum Checks {
     BlockHeightCheck(BlockHeigtCheck),
     EpochCheck(EpochCheck),
     TotalSupplyNative(TotalSupplyNativeCheck),
-    TxSize(TxSizeCheck)
+    TxSize(TxSizeCheck),
 }
 
 pub fn all_checks() -> Vec<Checks> {

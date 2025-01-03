@@ -1,5 +1,3 @@
-use anyhow::anyhow;
-
 #[derive(Clone, Debug, Default)]
 pub struct TxSizeCheck {}
 

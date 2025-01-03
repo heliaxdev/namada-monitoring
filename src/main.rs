@@ -80,10 +80,13 @@ async fn main() -> anyhow::Result<()> {
                     .query_total_supply(&native_token)
                     .await
                     .into_retry_error()?;
-                let (future_bonds, future_unbonds) = rpc.query_future_bonds_and_unbonds(epoch).await.into_retry_error()?;
+                let (future_bonds, future_unbonds) = rpc
+                    .query_future_bonds_and_unbonds(epoch)
+                    .await
+                    .into_retry_error()?;
 
                 let mut post_state_lock = state.write().await;
-                post_state_lock.update(block, total_supply_native);
+                post_state_lock.update(block, total_supply_native, future_bonds, future_unbonds);
                 let post_state = post_state_lock.clone();
                 drop(post_state_lock);
 
@@ -97,10 +100,8 @@ async fn main() -> anyhow::Result<()> {
                         }
                         checks::Checks::TotalSupplyNative(check) => {
                             check.run(&pre_state, &post_state).await
-                        },
-                        checks::Checks::TxSize(check) => {
-                            check.run(&pre_state, &post_state).await
                         }
+                        checks::Checks::TxSize(check) => check.run(&pre_state, &post_state).await,
                     };
                     if let Err(error) = check_res {
                         tracing::error!("Error: {}", error.to_string());
@@ -110,6 +111,8 @@ async fn main() -> anyhow::Result<()> {
                             .into_retry_error()?;
                     }
                 }
+
+                tracing::info!("Done block {}", block_height);
 
                 Ok(())
             },
