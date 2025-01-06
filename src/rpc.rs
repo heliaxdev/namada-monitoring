@@ -4,7 +4,7 @@ use anyhow::Context;
 use futures::FutureExt;
 use namada_sdk::{
     address::Address as NamadaAddress, hash::Hash, io::Client, rpc,
-    state::Key,
+    state::{BlockHeight, Key},
 };
 use tendermint_rpc::{HttpClient, Url};
 
@@ -30,13 +30,13 @@ impl Rpc {
         }
     }
 
-    pub async fn query_tx_code_hash(&self, tx_code_path: &str) -> anyhow::Result<Option<String>> {
+    pub async fn query_tx_code_hash(&self, tx_code_path: &str, height: Height) -> anyhow::Result<Option<String>> {
         let hash_key = Key::wasm_hash(tx_code_path);
 
         let futures = self
             .clients
             .iter()
-            .map(|client| rpc::query_storage_value_bytes(client, &hash_key, None, false).boxed());
+            .map(|client| rpc::query_storage_value_bytes(client, &hash_key, Some(BlockHeight(height)), false).boxed());
 
         let (res, _ready_future_index, _remaining_futures) =
             futures::future::select_all(futures).await;
@@ -119,4 +119,16 @@ impl Rpc {
         res.context("Should be able to query native token")
             .map(|amount| amount.raw_amount().as_u64())
     }
+
+    pub async fn query_max_block_time_estimate(&self) -> anyhow::Result<u64> {
+        let futures = self.clients.iter().map(|client| rpc::query_max_block_time_estimate(client).boxed());
+
+        let (res, _ready_future_index, _remaining_futures) =
+            futures::future::select_all(futures).await;
+
+        res.context("Should be able to query max block time estimate")
+            .map(|amount| amount.0)
+    }
+        
+        
 }

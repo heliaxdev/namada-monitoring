@@ -16,6 +16,7 @@ pub struct State {
     pub latest_block_height: Option<u64>,
     pub latest_epoch: Option<u64>,
     pub latest_total_supply_native: Option<u64>,
+    pub latest_max_block_time_estimate: Option<u64>,
     pub checksums: Checksums,
     pub blocks: LruCache<Height, Block>,
     pub metrics: PrometheusMetrics,
@@ -86,6 +87,7 @@ impl State {
             latest_block_height: Some(block_height),
             latest_epoch: None,
             latest_total_supply_native: None,
+            latest_max_block_time_estimate: None,
             checksums,
             blocks: LruCache::new(NonZeroUsize::new(1024).unwrap()),
             metrics: PrometheusMetrics::new(),
@@ -110,7 +112,11 @@ impl State {
             .unwrap_or(1)
     }
 
-    pub fn update(&mut self, block: Block, total_supply_native: u64) {
+    pub fn get_last_block(&mut self) -> Option<&Block> {
+        self.latest_block_height.and_then(|height| self.blocks.get(&height))
+    }
+
+    pub fn update(&mut self, block: Block, total_supply_native: u64, max_block_time_estimate: u64) {
         if let Some(height) = self.latest_block_height {
             self.metrics
                 .block_height_counter
@@ -139,7 +145,7 @@ impl State {
                 .inc_by(total_supply_native);
         }
         self.latest_total_supply_native = Some(total_supply_native);
-
+        self.latest_max_block_time_estimate = Some(max_block_time_estimate);
         self.blocks.put(block.height, block);
     }
 
