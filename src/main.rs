@@ -33,6 +33,7 @@ async fn main() -> anyhow::Result<()> {
 
     let apprise = AppRise::new(config.apprise_url, config.slack_token, config.slack_channel);
 
+    let retry_strategy = retry_strategy().max_delay_millis(config.sleep_for*1000);
     let rpc = Rpc::new(config.cometbft_urls);
 
     let mut checksums = Checksums::default();
@@ -44,17 +45,20 @@ async fn main() -> anyhow::Result<()> {
         checksums.add(code_path, code);
     }
 
+    let initial_block_height = match config.initial_block_height {
+        u64::MAX => rpc.query_lastest_height().await?,
+        height => height,
+    };
+
     let state = Arc::new(RwLock::new(State::new(
         checksums,
-        config.initial_block_height,
+        initial_block_height,
     )));
     let unlocked_state = state.read().await;
     let registry = unlocked_state.prometheus_registry();
     drop(unlocked_state);
 
     start_prometheus_exporter(registry, config.prometheus_port)?;
-
-    let retry_strategy = retry_strategy();
 
     loop {
         Retry::spawn_notify(
@@ -65,6 +69,8 @@ async fn main() -> anyhow::Result<()> {
                 let checksums = pre_state_lock.checksums.clone();
                 let pre_state = pre_state_lock.clone();
                 drop(pre_state_lock);
+                tokio::time::sleep(std::time::Duration::from_millis(config.sleep_for)).await;
+
 
                 let native_token = rpc.query_native_token().await.into_retry_error()?;
                 let epoch = rpc

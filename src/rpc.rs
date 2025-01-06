@@ -63,6 +63,19 @@ impl Rpc {
             .context("Should be able to get epoch")
     }
 
+
+    pub async fn query_lastest_height(
+        &self,
+    ) -> anyhow::Result<u64> {
+        let futures = self.clients.iter().map(|client| client.latest_block());
+
+        let (res, _ready_future_index, _remaining_futures) =
+            futures::future::select_all(futures).await;
+
+        res.map(|response| response.block.header.height.into())
+            .context("Should be able to query for block")
+    }
+
     pub async fn query_block(
         &self,
         block_height: Height,
