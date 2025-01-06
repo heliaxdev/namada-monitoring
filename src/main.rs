@@ -71,7 +71,6 @@ async fn main() -> anyhow::Result<()> {
                 drop(pre_state_lock);
                 tokio::time::sleep(std::time::Duration::from_millis(config.sleep_for)).await;
 
-
                 let native_token = rpc.query_native_token().await.into_retry_error()?;
                 let epoch = rpc
                     .query_current_epoch(block_height)

@@ -23,8 +23,11 @@ pub struct State {
 
 #[derive(Debug, Clone)]
 pub struct PrometheusMetrics {
+    /// The latest block height recorded
     pub block_height_counter: GenericCounter<AtomicU64>,
+    /// The latest epoch recorded
     pub epoch_counter: GenericCounter<AtomicU64>,
+    /// The latest total supply native token recorded
     pub total_supply_native_token: GenericCounter<AtomicU64>,
     registry: Registry,
 }
@@ -79,14 +82,26 @@ impl PrometheusMetrics {
 
 impl State {
     pub fn new(checksums: Checksums, block_height: u64) -> Self {
-        Self {
+        let mut new_state = Self {
             latest_block_height: Some(block_height),
             latest_epoch: None,
             latest_total_supply_native: None,
             checksums,
             blocks: LruCache::new(NonZeroUsize::new(1024).unwrap()),
             metrics: PrometheusMetrics::new(),
-        }
+        };
+        new_state.reset_metrics();
+        new_state
+    }
+
+    /// Initializes/resets metrics to current state
+    pub fn reset_metrics(&mut self) {
+        self.metrics.block_height_counter.reset();
+        self.metrics.epoch_counter.reset();
+        self.metrics.total_supply_native_token.reset();
+        self.metrics.block_height_counter.inc_by(self.latest_block_height.unwrap_or(0));
+        self.metrics.epoch_counter.inc_by(self.latest_epoch.unwrap_or(0));
+        self.metrics.total_supply_native_token.inc_by(self.latest_total_supply_native.unwrap_or(0));
     }
 
     pub fn next_block_height(&self) -> Height {
