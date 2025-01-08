@@ -113,6 +113,9 @@ async fn main() -> anyhow::Result<()> {
                         }
                         checks::Checks::TotalSupplyNative(check) => {
                             check.run(&pre_state, &post_state).await
+                        },
+                        checks::Checks::TxSize(check) => {
+                            check.run(&pre_state, &post_state).await
                         }
                         checks::Checks::BlockTimeCheck(check) => {
                             check.run(&pre_state, &post_state).await
