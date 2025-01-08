@@ -19,6 +19,12 @@ pub type TxId = String;
 pub type Address = String;
 
 #[derive(Clone, Debug)]
+pub struct Validator {
+    pub address: String,
+    pub voting_power: u64,
+}
+
+#[derive(Clone, Debug)]
 pub struct Block {
     pub height: Height,
     pub epoch: Epoch,
