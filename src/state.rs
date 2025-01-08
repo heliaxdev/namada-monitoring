@@ -2,7 +2,7 @@ use std::num::NonZeroUsize;
 
 use lru::LruCache;
 use prometheus_exporter::prometheus::{
-    core::{AtomicU64, GenericCounter, GenericCounterVec, GenericGauge},
+    core::{AtomicU64, GenericCounter, GenericCounterVec},
     GaugeVec, Histogram, HistogramOpts, IntCounterVec, Opts, Registry,
 };
 
