@@ -3,7 +3,10 @@ use std::str::FromStr;
 use anyhow::Context;
 use futures::FutureExt;
 use namada_sdk::{
-    address::Address as NamadaAddress, hash::Hash, io::Client, rpc,
+    address::Address as NamadaAddress,
+    hash::Hash,
+    io::Client,
+    rpc,
     state::{BlockHeight, Key},
 };
 use tendermint_rpc::{HttpClient, Url};
@@ -30,13 +33,17 @@ impl Rpc {
         }
     }
 
-    pub async fn query_tx_code_hash(&self, tx_code_path: &str, height: Height) -> anyhow::Result<Option<String>> {
+    pub async fn query_tx_code_hash(
+        &self,
+        tx_code_path: &str,
+        height: Height,
+    ) -> anyhow::Result<Option<String>> {
         let hash_key = Key::wasm_hash(tx_code_path);
 
-        let futures = self
-            .clients
-            .iter()
-            .map(|client| rpc::query_storage_value_bytes(client, &hash_key, Some(BlockHeight(height)), false).boxed());
+        let futures = self.clients.iter().map(|client| {
+            rpc::query_storage_value_bytes(client, &hash_key, Some(BlockHeight(height)), false)
+                .boxed()
+        });
 
         let (res, _ready_future_index, _remaining_futures) =
             futures::future::select_all(futures).await;
@@ -63,10 +70,7 @@ impl Rpc {
             .context("Should be able to get epoch")
     }
 
-
-    pub async fn query_lastest_height(
-        &self,
-    ) -> anyhow::Result<u64> {
+    pub async fn query_lastest_height(&self) -> anyhow::Result<u64> {
         let futures = self.clients.iter().map(|client| client.latest_block());
 
         let (res, _ready_future_index, _remaining_futures) =
@@ -121,7 +125,10 @@ impl Rpc {
     }
 
     pub async fn query_max_block_time_estimate(&self) -> anyhow::Result<u64> {
-        let futures = self.clients.iter().map(|client| rpc::query_max_block_time_estimate(client).boxed());
+        let futures = self
+            .clients
+            .iter()
+            .map(|client| rpc::query_max_block_time_estimate(client).boxed());
 
         let (res, _ready_future_index, _remaining_futures) =
             futures::future::select_all(futures).await;
@@ -129,6 +136,4 @@ impl Rpc {
         res.context("Should be able to query max block time estimate")
             .map(|amount| amount.0)
     }
-        
-        
 }

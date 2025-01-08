@@ -1,6 +1,7 @@
-use std::num::NonZeroUsize;
+use anyhow::{anyhow, Context};
+use std::net::SocketAddr;
 
-use lru::LruCache;
+//use lru::LruCache;
 use prometheus_exporter::prometheus::{
     core::{AtomicU64, GenericCounter},
     Registry,
@@ -8,18 +9,17 @@ use prometheus_exporter::prometheus::{
 
 use crate::shared::{
     checksums::Checksums,
-    namada::{Block, Height},
+    namada::{Address, Block, Height},
 };
 
 #[derive(Debug, Clone)]
 pub struct State {
-    pub latest_block_height: Option<u64>,
-    pub latest_epoch: Option<u64>,
-    pub latest_total_supply_native: Option<u64>,
-    pub latest_max_block_time_estimate: Option<u64>,
-    pub checksums: Checksums,
-    pub blocks: LruCache<Height, Block>,
-    pub metrics: PrometheusMetrics,
+    block: Block,
+    max_block_time_estimate: u64,
+    total_supply_native_token: u64,
+    checksums: Checksums,
+    native_token: Address,
+    //blocks: LruCache<Height, Block>,
 }
 
 #[derive(Debug, Clone)]
@@ -72,84 +72,91 @@ impl PrometheusMetrics {
         }
     }
 
-    pub fn increase_block_height(&self) {
-        self.block_height_counter.inc();
+    pub fn update(&self, pre_state: &State, post_state: &State) {
+        // consider the differences between pre and post state and update the metrics
+        self.block_height_counter
+            .inc_by(post_state.block.height - pre_state.block.height);
+        self.epoch_counter
+            .inc_by(post_state.block.epoch - pre_state.block.epoch);
+        self.total_supply_native_token
+            .inc_by(post_state.total_supply_native_token - pre_state.total_supply_native_token);
     }
 
-    pub fn increase_epoch(&self) {
-        self.epoch_counter.inc();
+    pub fn start_exporter(&self, port: u64) -> anyhow::Result<()> {
+        let addr_raw = format!("0.0.0.0:{}", port);
+        let addr: SocketAddr = addr_raw.parse().context("can not parse listen addr")?;
+
+        let mut builder = prometheus_exporter::Builder::new(addr);
+        builder.with_registry(self.registry.clone());
+        builder.start().context("can not start exporter")?;
+
+        Ok(())
+    }
+
+    // resets metrics to current state
+    pub fn reset_metrics(&self, state: &State) {
+        self.block_height_counter.reset();
+        self.epoch_counter.reset();
+        self.total_supply_native_token.reset();
+
+        self.block_height_counter.inc_by(state.block.height);
+        self.epoch_counter.inc_by(state.block.epoch);
+        self.total_supply_native_token
+            .inc_by(state.total_supply_native_token);
     }
 }
 
 impl State {
-    pub fn new(checksums: Checksums, block_height: u64) -> Self {
+    pub fn new(
+        block: Block,
+        checksums: Checksums,
+        native_token: Address,
+        max_block_time_estimate: u64,
+        total_supply_native_token: u64,
+    ) -> Self {
         let mut new_state = Self {
-            latest_block_height: Some(block_height),
-            latest_epoch: None,
-            latest_total_supply_native: None,
-            latest_max_block_time_estimate: None,
+            block,
+            total_supply_native_token,
+            max_block_time_estimate,
             checksums,
-            blocks: LruCache::new(NonZeroUsize::new(1024).unwrap()),
-            metrics: PrometheusMetrics::new(),
+            native_token,
+            //blocks: LruCache::new(NonZeroUsize::new(1024).unwrap()),
         };
-        new_state.reset_metrics();
         new_state
     }
 
-    /// Initializes/resets metrics to current state
-    pub fn reset_metrics(&mut self) {
-        self.metrics.block_height_counter.reset();
-        self.metrics.epoch_counter.reset();
-        self.metrics.total_supply_native_token.reset();
-        self.metrics.block_height_counter.inc_by(self.latest_block_height.unwrap_or(0));
-        self.metrics.epoch_counter.inc_by(self.latest_epoch.unwrap_or(0));
-        self.metrics.total_supply_native_token.inc_by(self.latest_total_supply_native.unwrap_or(0));
-    }
-
     pub fn next_block_height(&self) -> Height {
-        self.latest_block_height
-            .map(|height| height + 1)
-            .unwrap_or(1)
+        self.block.height + 1
     }
 
-    pub fn get_last_block(&mut self) -> Option<&Block> {
-        self.latest_block_height.and_then(|height| self.blocks.get(&height))
+    pub fn max_next_block_timestamp_estimate(&self) -> i64 {
+        self.block.timestamp + self.max_block_time_estimate as i64
+    }
+    pub fn get_max_block_time_estimate(&self) -> i64 {
+        self.max_block_time_estimate as i64
     }
 
-    pub fn update(&mut self, block: Block, total_supply_native: u64, max_block_time_estimate: u64) {
-        if let Some(height) = self.latest_block_height {
-            self.metrics
-                .block_height_counter
-                .inc_by(block.height - height);
-        } else {
-            self.metrics.block_height_counter.inc_by(block.height);
-        }
-        self.latest_block_height = Some(block.height);
-
-        if let Some(epoch) = self.latest_epoch {
-            self.metrics
-                .block_height_counter
-                .inc_by(block.epoch - epoch);
-        } else {
-            self.metrics.block_height_counter.inc_by(block.epoch);
-        }
-        self.latest_epoch = Some(block.epoch);
-
-        if let Some(total_supply) = self.latest_total_supply_native {
-            self.metrics
-                .total_supply_native_token
-                .inc_by(total_supply_native - total_supply);
-        } else {
-            self.metrics
-                .total_supply_native_token
-                .inc_by(total_supply_native);
-        }
-        self.latest_total_supply_native = Some(total_supply_native);
-        self.latest_max_block_time_estimate = Some(max_block_time_estimate);
-        self.blocks.put(block.height, block);
+    pub fn get_last_block(&self) -> &Block {
+        &self.block
     }
 
-    pub fn prometheus_registry(&self) -> Registry {
-        self.metrics.registry.clone()
+    // pub fn get_block(&mut self, height: Height) -> Option<&Block> {
+    //     if height == self.block.height {
+    //         Some(&self.block)
+    //     } else {
+    //         self.blocks.get(&height)
+    //     }
+    // }
+
+    pub fn get_total_supply(&self, token: &Address) -> Option<u64> {
+        if token == &self.native_token {
+            Some(self.total_supply_native_token)
+        } else {
+            None
+        }
+    }
+
+    pub fn get_native_token(&self) -> &Address {
+        &self.native_token
     }
 }

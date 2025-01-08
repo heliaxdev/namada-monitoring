@@ -2,8 +2,8 @@ pub mod block;
 pub mod epoch;
 pub mod total_supply_native;
 
-use block::BlockTimeCheck;
 use block::BlockHeigtCheck;
+use block::BlockTimeCheck;
 use epoch::EpochCheck;
 use total_supply_native::TotalSupplyNativeCheck;
 
