@@ -3,12 +3,12 @@ use std::num::NonZeroUsize;
 use lru::LruCache;
 use prometheus_exporter::prometheus::{
     core::{AtomicU64, GenericCounter, GenericCounterVec},
-    Histogram, HistogramOpts, IntCounterVec, Opts, Registry,
+    GaugeVec, Histogram, HistogramOpts, IntCounterVec, Opts, Registry,
 };
 
 use crate::shared::{
     checksums::Checksums,
-    namada::{Block, Height},
+    namada::{Block, Height, Validator},
 };
 
 #[derive(Debug, Clone)]
@@ -26,10 +26,11 @@ pub struct PrometheusMetrics {
     pub block_height_counter: GenericCounter<AtomicU64>,
     pub epoch_counter: GenericCounter<AtomicU64>,
     pub total_supply_native_token: GenericCounter<AtomicU64>,
+    pub one_third_threshold: GaugeVec,
+    pub two_third_threshold: GaugeVec,
     pub transaction_size: Histogram,
-    pub transaction_inner_size: Histogram,
-    pub bonds_per_epoch: GenericCounterVec<AtomicU64>,
-    pub unbonds_per_epoch: GenericCounterVec<AtomicU64>,
+    pub bonds_per_epoch: GaugeVec,
+    pub unbonds_per_epoch: GaugeVec,
     pub transaction_kind: GenericCounterVec<AtomicU64>,
     registry: Registry,
 }
@@ -51,6 +52,20 @@ impl PrometheusMetrics {
         let epoch_counter = GenericCounter::<AtomicU64>::new("epoch", "the latest epoch recorded")
             .expect("unable to create counter epoch");
 
+        let one_third_threshold_opts = Opts::new(
+            "one_third_threshold",
+            "The number of validators to reach 1/3 of the voting power",
+        );
+        let one_third_threshold = GaugeVec::new(one_third_threshold_opts, &["epoch"])
+            .expect("unable to create counter one third threshold");
+
+        let two_third_threshold_opts = Opts::new(
+            "two_third_threshold",
+            "The number of validators to reach 2/3 of the voting power",
+        );
+        let two_third_threshold = GaugeVec::new(two_third_threshold_opts, &["epoch"])
+            .expect("unable to create counter two third threshold");
+
         let total_supply_native_token = GenericCounter::<AtomicU64>::new(
             "total_supply_native_token",
             "the latest total supply native token recorded",
@@ -58,27 +73,19 @@ impl PrometheusMetrics {
         .expect("unable to create counter total supply");
 
         let transaction_size_opts = HistogramOpts::new(
-            "transaction_size_bytes",
-            "The sizes of transactions in bytes",
+            "transaction_batch_size",
+            "The number of inner transactions in a batch",
         )
-        .buckets(vec![
-            10.0, 50.0, 100.0, 500.0, 1000.0, 5000.0, 10000.0, 50000.0,
-        ]);
+        .buckets(vec![1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0]);
         let transaction_size = Histogram::with_opts(transaction_size_opts)
             .expect("unable to create histogram transaction sizes");
 
-        let transaction_inner_size_opts =
-            HistogramOpts::new("transaction_inners", "The number of inner tx for a wrapper")
-                .buckets(vec![2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0]);
-        let transaction_inner_size = Histogram::with_opts(transaction_inner_size_opts)
-            .expect("unable to create histogram transaction sizes");
-
         let bonds_per_epoch_opts = Opts::new("bonds_per_epoch", "Total bonds per epoch");
-        let bonds_per_epoch = IntCounterVec::new(bonds_per_epoch_opts, &["epoch"])
+        let bonds_per_epoch = GaugeVec::new(bonds_per_epoch_opts, &["epoch"])
             .expect("unable to create histogram transaction sizes");
 
         let unbonds_per_epoch_opts = Opts::new("unbonds_per_epoch", "Total unbonds per epoch");
-        let unbonds_per_epoch = IntCounterVec::new(unbonds_per_epoch_opts, &["epoch"])
+        let unbonds_per_epoch = GaugeVec::new(unbonds_per_epoch_opts, &["epoch"])
             .expect("unable to create histogram transaction sizes");
 
         let transaction_kind_opts =
@@ -93,6 +100,12 @@ impl PrometheusMetrics {
         registry.register(Box::new(epoch_counter.clone())).unwrap();
         registry
             .register(Box::new(total_supply_native_token.clone()))
+            .unwrap();
+        registry
+            .register(Box::new(one_third_threshold.clone()))
+            .unwrap();
+        registry
+            .register(Box::new(two_third_threshold.clone()))
             .unwrap();
         registry
             .register(Box::new(transaction_size.clone()))
@@ -111,8 +124,9 @@ impl PrometheusMetrics {
             block_height_counter,
             epoch_counter,
             total_supply_native_token,
+            one_third_threshold,
+            two_third_threshold,
             transaction_size,
-            transaction_inner_size,
             bonds_per_epoch,
             unbonds_per_epoch,
             transaction_kind,
@@ -153,6 +167,7 @@ impl State {
         total_supply_native: u64,
         future_bonds: u64,
         future_unbonds: u64,
+        mut validators: Vec<Validator>,
     ) {
         if let Some(height) = self.latest_block_height {
             self.metrics
@@ -185,7 +200,7 @@ impl State {
 
         for tx in &block.transactions {
             self.metrics
-                .transaction_inner_size
+                .transaction_size
                 .observe(tx.inners.len() as f64);
         }
 
@@ -201,30 +216,49 @@ impl State {
                         &block.height.to_string(),
                     ])
                     .inc();
-
-                self.metrics
-                    .transaction_size
-                    .observe(inner.kind.size() as f64);
             }
         }
 
+        validators.sort_by_key(|validator| validator.voting_power);
+        validators.reverse();
+        let total_voting_power = validators
+            .iter()
+            .map(|validator| validator.voting_power)
+            .sum::<u64>();
+        let one_third_voting_power = total_voting_power / 3;
+        let two_third_voting_power = total_voting_power * 2 / 3;
+        let (one_third_threshold, _) = validators.iter().fold((0, 0), |(index, acc), validator| {
+            if acc >= one_third_voting_power {
+                (index, acc)
+            } else {
+                (index + 1, acc + validator.voting_power)
+            }
+        });
+
+        let (two_third_threshold, _) = validators.iter().fold((0, 0), |(index, acc), validator| {
+            if acc >= two_third_voting_power {
+                (index, acc)
+            } else {
+                (index + 1, acc + validator.voting_power)
+            }
+        });
         self.metrics
-            .bonds_per_epoch
-            .with_label_values(&[&(block.epoch + 1).to_string()])
-            .reset();
+            .one_third_threshold
+            .with_label_values(&[&block.epoch.to_string()])
+            .set(one_third_threshold as f64);
         self.metrics
-            .bonds_per_epoch
-            .with_label_values(&[&(block.epoch + 1).to_string()])
-            .inc_by(future_bonds);
+            .two_third_threshold
+            .with_label_values(&[&block.epoch.to_string()])
+            .set(two_third_threshold as f64);
 
         self.metrics
-            .unbonds_per_epoch
+            .bonds_per_epoch
             .with_label_values(&[&(block.epoch + 1).to_string()])
-            .reset();
+            .set(future_bonds as f64);
         self.metrics
             .unbonds_per_epoch
             .with_label_values(&[&(block.epoch + 1).to_string()])
-            .inc_by(future_unbonds);
+            .set(future_unbonds as f64);
 
         self.blocks.put(block.height, block);
     }

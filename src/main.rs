@@ -84,9 +84,16 @@ async fn main() -> anyhow::Result<()> {
                     .query_future_bonds_and_unbonds(epoch)
                     .await
                     .into_retry_error()?;
+                let validators = rpc.query_validators(epoch).await.into_retry_error()?;
 
                 let mut post_state_lock = state.write().await;
-                post_state_lock.update(block, total_supply_native, future_bonds, future_unbonds);
+                post_state_lock.update(
+                    block,
+                    total_supply_native,
+                    future_bonds,
+                    future_unbonds,
+                    validators,
+                );
                 let post_state = post_state_lock.clone();
                 drop(post_state_lock);
 

@@ -10,7 +10,7 @@ use tendermint_rpc::{HttpClient, Url};
 
 use crate::shared::{
     checksums::Checksums,
-    namada::{Address, Block, Epoch, Height},
+    namada::{Address, Block, Epoch, Height, Validator},
 };
 
 pub struct Rpc {
@@ -76,6 +76,26 @@ impl Rpc {
 
         res.map(|response| Block::from(response, checksums, epoch))
             .context("Should be able to query for block")
+    }
+
+    pub async fn query_validators(&self, epoch: Epoch) -> anyhow::Result<Vec<Validator>> {
+        let futures = self
+            .clients
+            .iter()
+            .map(|client| rpc::get_all_consensus_validators(client, NamadaEpoch(epoch)).boxed());
+
+        let (res, _ready_future_index, _remaining_futures) =
+            futures::future::select_all(futures).await;
+
+        res.context("Should be able to query native token")
+            .map(|set| {
+                set.into_iter()
+                    .map(|validator| Validator {
+                        address: validator.address.to_string(),
+                        voting_power: validator.bonded_stake.raw_amount().as_u64(),
+                    })
+                    .collect()
+            })
     }
 
     pub async fn query_native_token(&self) -> anyhow::Result<Address> {
