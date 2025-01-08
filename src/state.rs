@@ -26,8 +26,8 @@ pub struct PrometheusMetrics {
     pub block_height_counter: GenericCounter<AtomicU64>,
     pub epoch_counter: GenericCounter<AtomicU64>,
     pub total_supply_native_token: GenericCounter<AtomicU64>,
-    pub one_third_threshold: GenericGauge<AtomicU64>,
-    pub two_third_threshold: GenericGauge<AtomicU64>,
+    pub one_third_threshold: GaugeVec,
+    pub two_third_threshold: GaugeVec,
     pub transaction_size: Histogram,
     pub bonds_per_epoch: GaugeVec,
     pub unbonds_per_epoch: GaugeVec,
@@ -52,17 +52,19 @@ impl PrometheusMetrics {
         let epoch_counter = GenericCounter::<AtomicU64>::new("epoch", "the latest epoch recorded")
             .expect("unable to create counter epoch");
 
-        let one_third_threshold = GenericGauge::<AtomicU64>::new(
+        let one_third_threshold_opts = Opts::new(
             "one_third_threshold",
-            "the number of validators to reach 1/3 of the voting power",
-        )
-        .expect("unable to create counter one third threshold");
+            "The number of validators to reach 1/3 of the voting power",
+        );
+        let one_third_threshold = GaugeVec::new(one_third_threshold_opts, &["epoch"])
+            .expect("unable to create counter one third threshold");
 
-        let two_third_threshold = GenericGauge::<AtomicU64>::new(
+        let two_third_threshold_opts = Opts::new(
             "two_third_threshold",
-            "the number of validators to reach 2/3 of the voting power",
-        )
-        .expect("unable to create counter two third threshold");
+            "The number of validators to reach 2/3 of the voting power",
+        );
+        let two_third_threshold = GaugeVec::new(two_third_threshold_opts, &["epoch"])
+            .expect("unable to create counter two third threshold");
 
         let total_supply_native_token = GenericCounter::<AtomicU64>::new(
             "total_supply_native_token",
@@ -240,8 +242,14 @@ impl State {
                 (index + 1, acc + validator.voting_power)
             }
         });
-        self.metrics.one_third_threshold.set(one_third_threshold);
-        self.metrics.two_third_threshold.set(two_third_threshold);
+        self.metrics
+            .one_third_threshold
+            .with_label_values(&[&block.epoch.to_string()])
+            .set(one_third_threshold as f64);
+        self.metrics
+            .two_third_threshold
+            .with_label_values(&[&block.epoch.to_string()])
+            .set(two_third_threshold as f64);
 
         self.metrics
             .bonds_per_epoch
