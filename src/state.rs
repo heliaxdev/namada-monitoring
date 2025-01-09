@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context};
+use anyhow::Context;
 use std::net::SocketAddr;
 
 //use lru::LruCache;
@@ -110,8 +110,6 @@ impl PrometheusMetrics {
         // update transaction size metrics
         for tx in &post_state.block.transactions {
             self.transaction_inner_size.observe(tx.inners.len() as f64);
-        }
-        for tx in &post_state.block.transactions {
             for inner in &tx.inners {
                 self.transaction_size.observe(inner.kind.size() as f64);    
             }

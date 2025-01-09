@@ -27,4 +27,10 @@ pub struct AppConfig {
 
     #[clap(flatten)]
     pub log: LogConfig,
+
+    #[clap(long, env, default_value_t = 100000)]
+    pub max_tx_size: u64,
+
+    #[clap(long, env, default_value_t = 100)]
+    pub max_tx_inner_len: u64,
 }
