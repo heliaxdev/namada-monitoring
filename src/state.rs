@@ -75,6 +75,7 @@ impl PrometheusMetrics {
         ]);
         let transaction_inner_size = Histogram::with_opts(transaction_inner_size_opts).expect("unable to create histogram transaction sizes");
 
+        // refgister metrics
         registry
             .register(Box::new(block_height_counter.clone()))
             .unwrap();
@@ -152,15 +153,14 @@ impl State {
         max_block_time_estimate: u64,
         total_supply_native_token: u64,
     ) -> Self {
-        let mut new_state = Self {
+        Self {
             block,
             total_supply_native_token,
             max_block_time_estimate,
             checksums,
             native_token,
             //blocks: LruCache::new(NonZeroUsize::new(1024).unwrap()),
-        };
-        new_state
+        }
     }
 
     pub fn next_block_height(&self) -> Height {
