@@ -32,6 +32,7 @@ pub struct PrometheusMetrics {
     pub bonds_per_epoch: GaugeVec,
     pub unbonds_per_epoch: GaugeVec,
     pub transaction_kind: GenericCounterVec<AtomicU64>,
+    pub transfer_amount: GaugeVec,
     registry: Registry,
 }
 
@@ -90,9 +91,12 @@ impl PrometheusMetrics {
 
         let transaction_kind_opts =
             Opts::new("transaction_kind", "Total transaction per transaction kind");
-        let transaction_kind =
-            IntCounterVec::new(transaction_kind_opts, &["kind", "epoch", "height"])
-                .expect("unable to create histogram transaction sizes");
+        let transaction_kind = IntCounterVec::new(transaction_kind_opts, &["kind", "epoch"])
+            .expect("unable to create histogram transaction sizes");
+
+        let transfer_amount_opts = Opts::new("transfer_amount", "Token transfer amount");
+        let transfer_amount = GaugeVec::new(transfer_amount_opts, &["token", "epoch"])
+            .expect("unable to create histogram transaction sizes");
 
         registry
             .register(Box::new(block_height_counter.clone()))
@@ -119,6 +123,9 @@ impl PrometheusMetrics {
         registry
             .register(Box::new(transaction_kind.clone()))
             .unwrap();
+        registry
+            .register(Box::new(transfer_amount.clone()))
+            .unwrap();
 
         Self {
             block_height_counter,
@@ -130,6 +137,7 @@ impl PrometheusMetrics {
             bonds_per_epoch,
             unbonds_per_epoch,
             transaction_kind,
+            transfer_amount,
             registry,
         }
     }
@@ -210,11 +218,7 @@ impl State {
 
                 self.metrics
                     .transaction_kind
-                    .with_label_values(&[
-                        &inner_kind,
-                        &block.epoch.to_string(),
-                        &block.height.to_string(),
-                    ])
+                    .with_label_values(&[&inner_kind, &block.epoch.to_string()])
                     .inc();
             }
         }
@@ -259,6 +263,14 @@ impl State {
             .unbonds_per_epoch
             .with_label_values(&[&(block.epoch + 1).to_string()])
             .set(future_unbonds as f64);
+
+        let transfers = block.get_all_transfers();
+        for transfer in transfers {
+            self.metrics
+                .transfer_amount
+                .with_label_values(&[&transfer.token, &(block.epoch + 1).to_string()])
+                .add(transfer.amount as f64);
+        }
 
         self.blocks.put(block.height, block);
     }
