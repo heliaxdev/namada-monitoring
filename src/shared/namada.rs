@@ -1,4 +1,4 @@
-use namada_sdk::borsh::BorshDeserialize;
+use namada_sdk::borsh::{BorshDeserialize, BorshSerializeExt};
 use namada_sdk::governance::{InitProposalData, VoteProposalData};
 use namada_sdk::ibc::{decode_message, IbcMessage};
 use namada_sdk::key::common::PublicKey;
@@ -158,6 +158,30 @@ impl InnerKind {
                 InnerKind::BecomeValidator(data)
             }
             _ => InnerKind::Unknown(data.to_vec()),
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        match self {
+            InnerKind::TransparentTransfer(tx) => tx.clone().map(|data| data.serialize_to_vec().len()).unwrap_or(0),
+            InnerKind::ShieldedTransfer(tx) => tx.clone().map(|data| data.serialize_to_vec().len()).unwrap_or(0),
+            InnerKind::IbcMsgTransfer(tx) => tx.clone().map(|data| match data {
+                IbcMessage::Envelope(msg_envelope) => msg_envelope.serialize_to_vec().len(),
+                IbcMessage::Transfer(msg_transfer) => msg_transfer.serialize_to_vec().len(),
+                IbcMessage::NftTransfer(msg_nft_transfer) => msg_nft_transfer.serialize_to_vec().len(),
+            }).unwrap_or(0),
+            InnerKind::Bond(tx) => tx.clone().map(|data| data.serialize_to_vec().len()).unwrap_or(0),
+            InnerKind::Redelegation(tx) => tx.clone().map(|data| data.serialize_to_vec().len()).unwrap_or(0),
+            InnerKind::Unbond(tx) => tx.clone().map(|data| data.serialize_to_vec().len()).unwrap_or(0),
+            InnerKind::Withdraw(tx) => tx.clone().map(|data| data.serialize_to_vec().len()).unwrap_or(0),
+            InnerKind::ClaimRewards(tx) => tx.clone().map(|data| data.serialize_to_vec().len()).unwrap_or(0),
+            InnerKind::ProposalVote(tx) => tx.clone().map(|data| data.serialize_to_vec().len()).unwrap_or(0),
+            InnerKind::InitProposal(tx) => tx.clone().map(|data| data.serialize_to_vec().len()).unwrap_or(0),
+            InnerKind::MetadataChange(tx) => tx.clone().map(|data| data.serialize_to_vec().len()).unwrap_or(0),
+            InnerKind::CommissionChange(tx) => tx.clone().map(|data| data.serialize_to_vec().len()).unwrap_or(0),
+            InnerKind::RevealPk(tx) => tx.clone().map(|data| data.serialize_to_vec().len()).unwrap_or(0),
+            InnerKind::BecomeValidator(tx) => tx.clone().map(|data| data.serialize_to_vec().len()).unwrap_or(0),
+            InnerKind::Unknown(tx) => tx.len(),
         }
     }
 }

@@ -95,7 +95,7 @@ async fn main() -> anyhow::Result<()> {
             retry_strategy.clone(),
             || async {
                 // lock is dropped at the end of the line
-                let mut pre_state = current_state.read().await.clone();
+                let pre_state = current_state.read().await.clone();
 
                 // immediate next block
                 let block_height = pre_state.next_block_height();
@@ -112,6 +112,9 @@ async fn main() -> anyhow::Result<()> {
                             check.run(&pre_state, &post_state).await
                         }
                         checks::Checks::TotalSupplyNative(check) => {
+                            check.run(&pre_state, &post_state).await
+                        },
+                        checks::Checks::TxSize(check) => {
                             check.run(&pre_state, &post_state).await
                         }
                         checks::Checks::BlockTimeCheck(check) => {
