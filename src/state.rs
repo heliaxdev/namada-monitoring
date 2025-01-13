@@ -129,9 +129,6 @@ impl PrometheusMetrics {
             .register(Box::new(two_third_threshold.clone()))
             .unwrap();
         registry
-            .register(Box::new(transaction_size.clone()))
-            .unwrap();
-        registry
             .register(Box::new(bonds_per_epoch.clone()))
             .unwrap();
         registry
@@ -287,23 +284,6 @@ impl State {
             .iter()
             .map(|validator| validator.voting_power)
             .sum()
-    }
-
-    pub fn one_third_threshold(&self) -> u64 {
-        let mut validators = self.validators.clone();
-        validators.sort_by_key(|validator| validator.voting_power);
-        validators.reverse();
-
-        let total_voting_power = self.total_voting_power();
-        let one_third_voting_power = total_voting_power / 3;
-        let (one_third_threshold, _) = validators.iter().fold((0, 0), |(index, acc), validator| {
-            if acc >= one_third_voting_power {
-                (index, acc)
-            } else {
-                (index + 1, acc + validator.voting_power)
-            }
-        });
-        one_third_threshold
     }
 
     pub fn validators_with_voting_power(&self, fraction: f64) -> anyhow::Result<u64> {
