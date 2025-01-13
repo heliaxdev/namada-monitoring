@@ -1,4 +1,3 @@
-use std::fmt::Display;
 use namada_sdk::borsh::{BorshDeserialize, BorshSerializeExt};
 use namada_sdk::governance::{InitProposalData, VoteProposalData};
 use namada_sdk::ibc::{decode_message, IbcMessage};
@@ -8,6 +7,7 @@ use namada_sdk::token::Transfer;
 use namada_sdk::tx::action::{Bond, ClaimRewards, Redelegation, Unbond, Withdraw};
 use namada_sdk::tx::data::pos::{BecomeValidator, CommissionChange, MetaDataChange};
 use namada_sdk::tx::{data::compute_inner_tx_hash, either::Either, Tx};
+use std::fmt::Display;
 use tendermint_rpc::endpoint::block::Response;
 
 use super::checksums::Checksums;

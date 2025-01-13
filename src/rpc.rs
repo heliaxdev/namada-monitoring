@@ -7,9 +7,7 @@ use namada_sdk::{
     hash::Hash,
     io::Client,
     rpc,
-    state::{BlockHeight, Key},
-    address::Address as NamadaAddress, hash::Hash, io::Client, rpc, state::Epoch as NamadaEpoch,
-    state::Key,
+    state::{BlockHeight, Epoch as NamadaEpoch, Key},
 };
 use tendermint_rpc::{HttpClient, Url};
 
@@ -151,8 +149,12 @@ impl Rpc {
             .clients
             .iter()
             .map(|client| rpc::query_max_block_time_estimate(client).boxed());
+
+        let (res, _ready_future_index, _remaining_futures) =
+            futures::future::select_all(futures).await;
+
         res.context("Should be able to query max block time estimate")
-        .map(|amount| amount.0)
+            .map(|amount| amount.0)
     }
 
     pub async fn query_future_bonds_and_unbonds(&self, epoch: Epoch) -> anyhow::Result<(u64, u64)> {

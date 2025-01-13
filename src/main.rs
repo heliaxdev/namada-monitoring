@@ -65,7 +65,6 @@ async fn get_state_from_rpc(rpc: &Rpc, height: u64) -> anyhow::Result<State> {
         .into_retry_error()?;
     let validators = rpc.query_validators(epoch).await.into_retry_error()?;
 
-
     Ok(State::new(
         block,
         checksums,
@@ -74,7 +73,7 @@ async fn get_state_from_rpc(rpc: &Rpc, height: u64) -> anyhow::Result<State> {
         total_supply_native,
         validators,
         future_bonds,
-        future_unbonds
+        future_unbonds,
     ))
 }
 
@@ -123,10 +122,8 @@ async fn main() -> anyhow::Result<()> {
                         }
                         checks::Checks::TotalSupplyNative(check) => {
                             check.run(&pre_state, &post_state).await
-                        },
-                        checks::Checks::TxSize(check) => {
-                            check.run(&pre_state, &post_state).await
                         }
+                        checks::Checks::TxSize(check) => check.run(&pre_state, &post_state).await,
                         checks::Checks::BlockTimeCheck(check) => {
                             check.run(&pre_state, &post_state).await
                         }

@@ -1,5 +1,5 @@
-use anyhow::anyhow;
 use crate::state::State;
+use anyhow::anyhow;
 
 #[derive(Clone, Debug)]
 pub struct TxSizeCheck {
@@ -15,25 +15,21 @@ impl TxSizeCheck {
         }
     }
 
-    pub async fn run(
-        &self,
-        _pre_state: &State,
-        post_state: &State,
-    ) -> anyhow::Result<()> {
+    pub async fn run(&self, _pre_state: &State, post_state: &State) -> anyhow::Result<()> {
         for tx in &post_state.get_last_block().transactions {
-            if tx.inners.len() > self.max_inner_len as usize{
+            if tx.inners.len() > self.max_inner_len as usize {
                 return Err(anyhow!(
                     "Transaction inner length is too large: {}",
                     tx.inners.len()
                 ));
             }
             for inner in &tx.inners {
-                if inner.kind.size() > self.max_tx_size as usize{
+                if inner.kind.size() > self.max_tx_size as usize {
                     return Err(anyhow!(
                         "Transaction size is too large: {}",
                         inner.kind.size()
                     ));
-                }    
+                }
             }
         }
         Ok(())
