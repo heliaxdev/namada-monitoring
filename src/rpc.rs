@@ -8,12 +8,14 @@ use namada_sdk::{
     io::Client,
     rpc,
     state::{BlockHeight, Key},
+    address::Address as NamadaAddress, hash::Hash, io::Client, rpc, state::Epoch as NamadaEpoch,
+    state::Key,
 };
 use tendermint_rpc::{HttpClient, Url};
 
 use crate::shared::{
     checksums::Checksums,
-    namada::{Address, Block, Epoch, Height},
+    namada::{Address, Block, Epoch, Height, Validator},
 };
 
 pub struct Rpc {
@@ -95,6 +97,26 @@ impl Rpc {
             .context("Should be able to query for block")
     }
 
+    pub async fn query_validators(&self, epoch: Epoch) -> anyhow::Result<Vec<Validator>> {
+        let futures = self
+            .clients
+            .iter()
+            .map(|client| rpc::get_all_consensus_validators(client, NamadaEpoch(epoch)).boxed());
+
+        let (res, _ready_future_index, _remaining_futures) =
+            futures::future::select_all(futures).await;
+
+        res.context("Should be able to query native token")
+            .map(|set| {
+                set.into_iter()
+                    .map(|validator| Validator {
+                        address: validator.address.to_string(),
+                        voting_power: validator.bonded_stake.raw_amount().as_u64(),
+                    })
+                    .collect()
+            })
+    }
+
     pub async fn query_native_token(&self) -> anyhow::Result<Address> {
         let futures = self
             .clients
@@ -129,11 +151,31 @@ impl Rpc {
             .clients
             .iter()
             .map(|client| rpc::query_max_block_time_estimate(client).boxed());
+        res.context("Should be able to query max block time estimate")
+        .map(|amount| amount.0)
+    }
+
+    pub async fn query_future_bonds_and_unbonds(&self, epoch: Epoch) -> anyhow::Result<(u64, u64)> {
+        let pipeline_epoch = NamadaEpoch(epoch + 1);
+        let futures = self.clients.iter().map(|client| {
+            rpc::enriched_bonds_and_unbonds(client, pipeline_epoch, &None, &None).boxed()
+        });
 
         let (res, _ready_future_index, _remaining_futures) =
             futures::future::select_all(futures).await;
 
-        res.context("Should be able to query max block time estimate")
-            .map(|amount| amount.0)
+        res.context("Should be able to query native token")
+            .map(|summary| {
+                (
+                    summary
+                        .bonds_total_active()
+                        .map(|amount| amount.raw_amount().as_u64())
+                        .unwrap_or(0),
+                    summary
+                        .unbonds_total_active()
+                        .map(|amount| amount.raw_amount().as_u64())
+                        .unwrap_or(0),
+                )
+            })
     }
 }

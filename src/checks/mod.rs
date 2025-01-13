@@ -8,7 +8,6 @@ use block::BlockTimeCheck;
 use epoch::EpochCheck;
 use total_supply_native::TotalSupplyNativeCheck;
 use tx_size::TxSizeCheck;
-
 use crate::config::AppConfig;
 
 pub enum Checks {

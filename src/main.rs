@@ -59,6 +59,12 @@ async fn get_state_from_rpc(rpc: &Rpc, height: u64) -> anyhow::Result<State> {
         .query_total_supply(&native_token)
         .await
         .into_retry_error()?;
+    let (future_bonds, future_unbonds) = rpc
+        .query_future_bonds_and_unbonds(epoch)
+        .await
+        .into_retry_error()?;
+    let validators = rpc.query_validators(epoch).await.into_retry_error()?;
+
 
     Ok(State::new(
         block,
@@ -66,6 +72,9 @@ async fn get_state_from_rpc(rpc: &Rpc, height: u64) -> anyhow::Result<State> {
         native_token,
         max_block_time_estimate,
         total_supply_native,
+        validators,
+        future_bonds,
+        future_unbonds
     ))
 }
 
@@ -77,7 +86,7 @@ async fn main() -> anyhow::Result<()> {
     let apprise = AppRise::new(config.apprise_url, config.slack_token, config.slack_channel);
 
     let retry_strategy = retry_strategy().max_delay_millis(config.sleep_for * 1000);
-    let rpc = Rpc::new(config.cometbft_urls);
+    let rpc = Rpc::new(config.cometbft_urls.clone());
 
     let initial_block_height = match config.initial_block_height {
         u64::MAX => rpc.query_lastest_height().await?,
@@ -90,6 +99,7 @@ async fn main() -> anyhow::Result<()> {
     metrics.start_exporter(config.prometheus_port)?;
 
     let current_state = Arc::new(RwLock::new(state));
+    let all_checks = all_checks(config);
     loop {
         Retry::spawn_notify(
             retry_strategy.clone(),
@@ -103,7 +113,7 @@ async fn main() -> anyhow::Result<()> {
                     .await
                     .into_retry_error()?;
 
-                for check_kind in all_checks() {
+                for check_kind in all_checks.clone() {
                     let check_res = match check_kind {
                         checks::Checks::BlockHeightCheck(check) => {
                             check.run(&pre_state, &post_state).await
@@ -135,6 +145,8 @@ async fn main() -> anyhow::Result<()> {
 
                 // post_state is the new current state
                 *current_state.write().await = post_state;
+                tracing::info!("Done block {}", block_height);
+
                 Ok(())
             },
             notify,
