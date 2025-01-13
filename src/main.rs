@@ -79,10 +79,10 @@ async fn get_state_from_rpc(rpc: &Rpc, height: u64) -> anyhow::Result<State> {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let config = AppConfig::parse();
+    let config =  AppConfig::parse();
     config.log.init();
 
-    let apprise = AppRise::new(config.apprise_url, config.slack_token, config.slack_channel);
+    let apprise = AppRise::new(config.apprise_url.clone(), config.slack_token.clone(), config.slack_channel.clone());
 
     let retry_strategy = retry_strategy().max_delay_millis(config.sleep_for * 1000);
     let rpc = Rpc::new(config.cometbft_urls.clone());
@@ -98,7 +98,6 @@ async fn main() -> anyhow::Result<()> {
     metrics.start_exporter(config.prometheus_port)?;
 
     let current_state = Arc::new(RwLock::new(state));
-    let all_checks = all_checks(config);
     loop {
         Retry::spawn_notify(
             retry_strategy.clone(),
@@ -112,7 +111,7 @@ async fn main() -> anyhow::Result<()> {
                     .await
                     .into_retry_error()?;
 
-                for check_kind in all_checks.clone() {
+                for check_kind in all_checks(&config){
                     let check_res = match check_kind {
                         checks::Checks::BlockHeightCheck(check) => {
                             check.run(&pre_state, &post_state).await

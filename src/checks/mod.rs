@@ -18,7 +18,7 @@ pub enum Checks {
     TxSize(TxSizeCheck),
 }
 
-pub fn all_checks(config: AppConfig) -> Vec<Checks> {
+pub fn all_checks(config: &AppConfig) -> Vec<Checks> {
     vec![
         Checks::BlockHeightCheck(BlockHeigtCheck::default()),
         Checks::EpochCheck(EpochCheck::default()),
