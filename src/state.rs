@@ -34,11 +34,12 @@ pub struct PrometheusMetrics {
     pub total_supply_native_token: GenericCounter<AtomicU64>,
     pub transaction_size: Histogram,
     pub transaction_inner_size: Histogram,
-    pub transaction_kind: GenericCounterVec<AtomicU64>,
     pub one_third_threshold: GaugeVec,
     pub two_third_threshold: GaugeVec,
     pub bonds_per_epoch: GaugeVec,
     pub unbonds_per_epoch: GaugeVec,
+    pub transaction_kind: GenericCounterVec<AtomicU64>,
+    pub transfer_amount: GaugeVec,
     registry: Registry,
 }
 
@@ -104,9 +105,12 @@ impl PrometheusMetrics {
 
         let transaction_kind_opts =
             Opts::new("transaction_kind", "Total transaction per transaction kind");
-        let transaction_kind =
-            IntCounterVec::new(transaction_kind_opts, &["kind", "epoch", "height"])
-                .expect("unable to create histogram transaction sizes");
+        let transaction_kind = IntCounterVec::new(transaction_kind_opts, &["kind", "epoch"])
+            .expect("unable to create histogram transaction sizes");
+
+        let transfer_amount_opts = Opts::new("transfer_amount", "Token transfer amount");
+        let transfer_amount = GaugeVec::new(transfer_amount_opts, &["token", "epoch"])
+            .expect("unable to create histogram transaction sizes");
 
         // Register metrics
         registry
@@ -137,6 +141,9 @@ impl PrometheusMetrics {
         registry
             .register(Box::new(transaction_kind.clone()))
             .unwrap();
+        registry
+            .register(Box::new(transfer_amount.clone()))
+            .unwrap();
 
         Self {
             block_height_counter,
@@ -149,6 +156,7 @@ impl PrometheusMetrics {
             bonds_per_epoch,
             unbonds_per_epoch,
             transaction_kind,
+            transfer_amount,
             registry,
         }
     }
@@ -173,7 +181,6 @@ impl PrometheusMetrics {
                     .with_label_values(&[
                         &inner_kind,
                         &post_state.block.epoch.to_string(),
-                        &post_state.block.height.to_string(),
                     ])
                     .inc();
 
@@ -202,6 +209,14 @@ impl PrometheusMetrics {
         self.unbonds_per_epoch
             .with_label_values(&[&(post_state.block.epoch + 1).to_string()])
             .set(post_state.future_unbonds as f64);
+
+            let transfers = post_state.block.get_all_transfers();
+            for transfer in transfers {
+                self.transfer_amount
+                    .with_label_values(&[&transfer.token, &post_state.block.epoch.to_string()])
+                    .add(transfer.amount as f64);
+            }
+    
     }
 
     pub fn start_exporter(&self, port: u64) -> anyhow::Result<()> {

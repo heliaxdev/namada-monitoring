@@ -1,13 +1,14 @@
+use std::collections::BTreeMap;
+use std::fmt::Display;
 use namada_sdk::borsh::{BorshDeserialize, BorshSerializeExt};
 use namada_sdk::governance::{InitProposalData, VoteProposalData};
 use namada_sdk::ibc::{decode_message, IbcMessage};
 use namada_sdk::key::common::PublicKey;
 use namada_sdk::masp::ShieldedTransfer;
-use namada_sdk::token::Transfer;
+use namada_sdk::token::Transfer as NamadaTransfer;
 use namada_sdk::tx::action::{Bond, ClaimRewards, Redelegation, Unbond, Withdraw};
 use namada_sdk::tx::data::pos::{BecomeValidator, CommissionChange, MetaDataChange};
 use namada_sdk::tx::{data::compute_inner_tx_hash, either::Either, Tx};
-use std::fmt::Display;
 use tendermint_rpc::endpoint::block::Response;
 
 use super::checksums::Checksums;
@@ -39,9 +40,9 @@ pub struct Wrapper {
 
 #[derive(Clone, Debug)]
 pub enum InnerKind {
-    TransparentTransfer(Option<Transfer>),
+    TransparentTransfer(Option<NamadaTransfer>),
     ShieldedTransfer(Option<ShieldedTransfer>),
-    IbcMsgTransfer(Option<IbcMessage<Transfer>>),
+    IbcMsgTransfer(Option<IbcMessage<NamadaTransfer>>),
     Bond(Option<Bond>),
     Redelegation(Option<Redelegation>),
     Unbond(Option<Unbond>),
@@ -82,7 +83,7 @@ impl InnerKind {
     pub fn from_code_name(name: &str, data: &[u8]) -> Self {
         match name {
             "tx_transfer" => {
-                let data = if let Ok(data) = Transfer::try_from_slice(data) {
+                let data = if let Ok(data) = NamadaTransfer::try_from_slice(data) {
                     Some(data)
                 } else {
                     None
@@ -170,7 +171,7 @@ impl InnerKind {
                 InnerKind::RevealPk(data)
             }
             "tx_ibc" => {
-                let data = if let Ok(data) = decode_message::<Transfer>(data) {
+                let data = if let Ok(data) = decode_message::<NamadaTransfer>(data) {
                     Some(data)
                 } else {
                     tracing::warn!("Cannot deserialize IBC transfer");
@@ -326,4 +327,99 @@ impl Block {
                 .collect(),
         }
     }
+
+    pub fn get_all_transfers(&self) -> Vec<Transfer> {
+        let inners = self
+            .transactions
+            .iter()
+            .flat_map(|tx| tx.inners.clone());
+        inners
+            .filter_map(|inner| match inner.kind {
+                InnerKind::TransparentTransfer(transfer) => {
+                    if let Some(data) = transfer {
+                        let groups: BTreeMap<String, Vec<u64>> =
+                            data.targets
+                                .into_iter()
+                                .fold(BTreeMap::new(), |mut acc, (a, b)| {
+                                    acc.entry(a.token.to_string())
+                                        .or_default()
+                                        .push(b.amount().raw_amount().as_u64());
+                                    acc
+                                });
+
+                        Some(
+                            groups
+                                .iter()
+                                .map(|(token, amounts)| {
+                                    let total = amounts.iter().sum();
+                                    Transfer {
+                                        height: self.height,
+                                        id: inner.id.clone(),
+                                        kind: TransferKind::Native,
+                                        token: token.clone(),
+                                        amount: total,
+                                    }
+                                })
+                                .collect(),
+                        )
+                    } else {
+                        None
+                    }
+                }
+                InnerKind::IbcMsgTransfer(ibc_message) => {
+                    if let Some(data) = ibc_message {
+                        match data {
+                            IbcMessage::Transfer(msg_transfer) => {
+                                if let Some(transfer) = msg_transfer.transfer {
+                                    let groups: BTreeMap<String, Vec<u64>> = transfer
+                                        .targets
+                                        .into_iter()
+                                        .fold(BTreeMap::new(), |mut acc, (a, b)| {
+                                            acc.entry(a.token.to_string())
+                                                .or_default()
+                                                .push(b.amount().raw_amount().as_u64());
+                                            acc
+                                        });
+                                    let transfers = groups
+                                        .iter()
+                                        .map(|(token, amounts)| {
+                                            let total = amounts.iter().sum();
+                                            Transfer {
+                                                height: self.height,
+                                                id: inner.id.clone(),
+                                                kind: TransferKind::Native,
+                                                token: token.clone(),
+                                                amount: total,
+                                            }
+                                        })
+                                        .collect::<Vec<Transfer>>();
+                                    Some(transfers)
+                                } else {
+                                    None
+                                }
+                            }
+                            _ => None,
+                        }
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            })
+            .flatten()
+            .collect()
+    }
+}
+
+pub enum TransferKind {
+    Ibc,
+    Native,
+}
+
+pub struct Transfer {
+    pub height: Height,
+    pub id: String,
+    pub kind: TransferKind,
+    pub token: String,
+    pub amount: u64,
 }
