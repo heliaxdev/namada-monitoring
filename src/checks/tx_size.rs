@@ -24,11 +24,8 @@ impl TxSizeCheck {
                 ));
             }
             for inner in &tx.inners {
-                if inner.kind.size() > self.max_tx_size as usize {
-                    return Err(anyhow!(
-                        "Transaction size is too large: {}",
-                        inner.kind.size()
-                    ));
+                if inner.size > self.max_tx_size as usize {
+                    return Err(anyhow!("Transaction size is too large: {}", inner.size));
                 }
             }
         }

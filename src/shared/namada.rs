@@ -1,9 +1,8 @@
-use namada_sdk::borsh::{BorshDeserialize, BorshSerializeExt};
+use namada_sdk::borsh::BorshDeserialize;
 use namada_sdk::governance::{InitProposalData, VoteProposalData};
-use namada_sdk::ibc::{decode_message, IbcMessage};
+use namada_sdk::ibc::IbcMessage;
 use namada_sdk::key::common::PublicKey;
-use namada_sdk::masp::ShieldedTransfer;
-use namada_sdk::token::Transfer;
+use namada_sdk::token::Transfer as NamadaTransfer;
 use namada_sdk::tx::action::{Bond, ClaimRewards, Redelegation, Unbond, Withdraw};
 use namada_sdk::tx::data::pos::{BecomeValidator, CommissionChange, MetaDataChange};
 use namada_sdk::tx::{data::compute_inner_tx_hash, either::Either, Tx};
@@ -39,29 +38,30 @@ pub struct Wrapper {
 
 #[derive(Clone, Debug)]
 pub enum InnerKind {
-    TransparentTransfer(Option<Transfer>),
-    ShieldedTransfer(Option<ShieldedTransfer>),
-    IbcMsgTransfer(Option<IbcMessage<Transfer>>),
-    Bond(Option<Bond>),
-    Redelegation(Option<Redelegation>),
-    Unbond(Option<Unbond>),
-    Withdraw(Option<Withdraw>),
-    ClaimRewards(Option<ClaimRewards>),
-    ProposalVote(Option<VoteProposalData>),
-    InitProposal(Option<InitProposalData>),
-    MetadataChange(Option<MetaDataChange>),
-    CommissionChange(Option<CommissionChange>),
-    RevealPk(Option<PublicKey>),
-    BecomeValidator(Option<BecomeValidator>),
-    Unknown(Vec<u8>),
+    TransparentTransfer(NamadaTransfer),
+    IbcMsgTransfer(Option<IbcMessage<NamadaTransfer>>),
+    Bond(Bond),
+    Redelegation(Redelegation),
+    Unbond(Unbond),
+    Withdraw(Withdraw),
+    ClaimRewards(ClaimRewards),
+    ProposalVote(VoteProposalData),
+    InitProposal(InitProposalData),
+    MetadataChange(MetaDataChange),
+    CommissionChange(CommissionChange),
+    RevealPk(PublicKey),
+    BecomeValidator(BecomeValidator),
+    DeactivateValidator(Address),
+    ReactivateValidator(Address),
+    UnjailValidator(Address),
+    Unknown(String, Vec<u8>),
 }
 
 impl Display for InnerKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            InnerKind::TransparentTransfer(_) => write!(f, "transparent_transfer"),
-            InnerKind::ShieldedTransfer(_) => write!(f, "shielded_transfer"),
-            InnerKind::IbcMsgTransfer(_) => write!(f, "ibc"),
+            InnerKind::TransparentTransfer(_) => write!(f, "transfer"),
+            InnerKind::IbcMsgTransfer(_) => write!(f, "ibc_transfer"),
             InnerKind::Bond(_) => write!(f, "bond"),
             InnerKind::Redelegation(_) => write!(f, "redelegate"),
             InnerKind::Unbond(_) => write!(f, "unbond"),
@@ -73,188 +73,68 @@ impl Display for InnerKind {
             InnerKind::CommissionChange(_) => write!(f, "commission_change"),
             InnerKind::RevealPk(_) => write!(f, "reveal_public_key"),
             InnerKind::BecomeValidator(_) => write!(f, "become_validator"),
-            InnerKind::Unknown(_) => write!(f, "unknown"),
+            InnerKind::DeactivateValidator(_) => write!(f, "deactivate_validator"),
+            InnerKind::ReactivateValidator(_) => write!(f, "reactivate_validator"),
+            InnerKind::UnjailValidator(_) => write!(f, "unjail_validator"),
+            InnerKind::Unknown(..) => write!(f, "unknown"),
         }
     }
 }
 
 impl InnerKind {
-    pub fn from_code_name(name: &str, data: &[u8]) -> Self {
-        match name {
-            "tx_transfer" => {
-                let data = if let Ok(data) = Transfer::try_from_slice(data) {
-                    Some(data)
-                } else {
-                    None
-                };
-                InnerKind::TransparentTransfer(data)
-            }
+    pub fn from(tx_code_name: &str, data: &[u8]) -> Self {
+        let default = |_| InnerKind::Unknown(tx_code_name.into(), data.to_vec());
+        match tx_code_name {
+            "tx_transfer" => NamadaTransfer::try_from_slice(data)
+                .map_or_else(default, |data| InnerKind::TransparentTransfer(data)),
             "tx_bond" => {
-                let data = if let Ok(data) = Bond::try_from_slice(data) {
-                    Some(data)
-                } else {
-                    None
-                };
-                InnerKind::Bond(data)
+                Bond::try_from_slice(data).map_or_else(default, |bond| InnerKind::Bond(bond))
             }
-            "tx_redelegate" => {
-                let data = if let Ok(data) = Redelegation::try_from_slice(data) {
-                    Some(data)
-                } else {
-                    None
-                };
-                InnerKind::Redelegation(data)
-            }
-            "tx_unbond" => {
-                let data = if let Ok(data) = Unbond::try_from_slice(data) {
-                    Some(Unbond::from(data))
-                } else {
-                    None
-                };
-                InnerKind::Unbond(data)
-            }
-            "tx_withdraw" => {
-                let data = if let Ok(data) = Withdraw::try_from_slice(data) {
-                    Some(data)
-                } else {
-                    None
-                };
-                InnerKind::Withdraw(data)
-            }
-            "tx_claim_rewards" => {
-                let data = if let Ok(data) = ClaimRewards::try_from_slice(data) {
-                    Some(data)
-                } else {
-                    None
-                };
-                InnerKind::ClaimRewards(data)
-            }
-            "tx_init_proposal" => {
-                let data = if let Ok(data) = InitProposalData::try_from_slice(data) {
-                    Some(data)
-                } else {
-                    None
-                };
-                InnerKind::InitProposal(data)
-            }
-            "tx_vote_proposal" => {
-                let data = if let Ok(data) = VoteProposalData::try_from_slice(data) {
-                    Some(data)
-                } else {
-                    None
-                };
-                InnerKind::ProposalVote(data)
-            }
-            "tx_change_validator_metadata" => {
-                let data = if let Ok(data) = MetaDataChange::try_from_slice(data) {
-                    Some(data)
-                } else {
-                    None
-                };
-                InnerKind::MetadataChange(data)
-            }
-            "tx_commission_change" => {
-                let data = if let Ok(data) = CommissionChange::try_from_slice(data) {
-                    Some(data)
-                } else {
-                    None
-                };
-                InnerKind::CommissionChange(data)
-            }
+            "tx_redelegate" => Redelegation::try_from_slice(data)
+                .map_or_else(default, |redelegation| {
+                    InnerKind::Redelegation(redelegation)
+                }),
+            "tx_unbond" => Unbond::try_from_slice(data)
+                .map_or_else(default, |unbond| InnerKind::Unbond(Unbond::from(unbond))),
+            "tx_withdraw" => Withdraw::try_from_slice(data)
+                .map_or_else(default, |withdraw| InnerKind::Withdraw(withdraw)),
+            "tx_claim_rewards" => ClaimRewards::try_from_slice(data)
+                .map_or_else(default, |claim_rewards| {
+                    InnerKind::ClaimRewards(claim_rewards)
+                }),
+            "tx_init_proposal" => InitProposalData::try_from_slice(data)
+                .map_or_else(default, |init_proposal| {
+                    InnerKind::InitProposal(init_proposal)
+                }),
+            "tx_vote_proposal" => VoteProposalData::try_from_slice(data)
+                .map_or_else(default, |vote_proposal| {
+                    InnerKind::ProposalVote(vote_proposal)
+                }),
+            "tx_change_validator_metadata" => MetaDataChange::try_from_slice(data)
+                .map_or_else(default, |metadata_change| {
+                    InnerKind::MetadataChange(metadata_change)
+                }),
+            "tx_commission_change" => CommissionChange::try_from_slice(data)
+                .map_or_else(default, |commission_change| {
+                    InnerKind::CommissionChange(commission_change)
+                }),
             "tx_reveal_pk" => {
-                let data = if let Ok(data) = PublicKey::try_from_slice(data) {
-                    Some(data)
-                } else {
-                    None
-                };
-                InnerKind::RevealPk(data)
+                PublicKey::try_from_slice(data).map_or_else(default, |pk| InnerKind::RevealPk(pk))
             }
-            "tx_ibc" => {
-                let data = if let Ok(data) = decode_message::<Transfer>(data) {
-                    Some(data)
-                } else {
-                    tracing::warn!("Cannot deserialize IBC transfer");
-                    None
-                };
-                InnerKind::IbcMsgTransfer(data)
+            "tx_deactivate_validator" => Address::try_from_slice(data)
+                .map_or_else(default, |address| InnerKind::DeactivateValidator(address)),
+            "tx_reactivate_validator" => Address::try_from_slice(data)
+                .map_or_else(default, |address| InnerKind::ReactivateValidator(address)),
+            "tx_unjail_validator" => Address::try_from_slice(data)
+                .map_or_else(default, |address| InnerKind::UnjailValidator(address)),
+            "tx_become_validator" => BecomeValidator::try_from_slice(data)
+                .map_or_else(default, |become_validator| {
+                    InnerKind::BecomeValidator(become_validator)
+                }),
+            _ => {
+                tracing::warn!("Unknown transaction kind: {}", tx_code_name);
+                InnerKind::Unknown(tx_code_name.into(), data.to_vec())
             }
-            "tx_become_validator" => {
-                let data = if let Ok(data) = BecomeValidator::try_from_slice(data) {
-                    Some(data)
-                } else {
-                    None
-                };
-                InnerKind::BecomeValidator(data)
-            }
-            _ => InnerKind::Unknown(data.to_vec()),
-        }
-    }
-
-    pub fn size(&self) -> usize {
-        match self {
-            InnerKind::TransparentTransfer(tx) => tx
-                .clone()
-                .map(|data| data.serialize_to_vec().len())
-                .unwrap_or(0),
-            InnerKind::ShieldedTransfer(tx) => tx
-                .clone()
-                .map(|data| data.serialize_to_vec().len())
-                .unwrap_or(0),
-            InnerKind::IbcMsgTransfer(tx) => tx
-                .clone()
-                .map(|data| match data {
-                    IbcMessage::Envelope(msg_envelope) => msg_envelope.serialize_to_vec().len(),
-                    IbcMessage::Transfer(msg_transfer) => msg_transfer.serialize_to_vec().len(),
-                    IbcMessage::NftTransfer(msg_nft_transfer) => {
-                        msg_nft_transfer.serialize_to_vec().len()
-                    }
-                })
-                .unwrap_or(0),
-            InnerKind::Bond(tx) => tx
-                .clone()
-                .map(|data| data.serialize_to_vec().len())
-                .unwrap_or(0),
-            InnerKind::Redelegation(tx) => tx
-                .clone()
-                .map(|data| data.serialize_to_vec().len())
-                .unwrap_or(0),
-            InnerKind::Unbond(tx) => tx
-                .clone()
-                .map(|data| data.serialize_to_vec().len())
-                .unwrap_or(0),
-            InnerKind::Withdraw(tx) => tx
-                .clone()
-                .map(|data| data.serialize_to_vec().len())
-                .unwrap_or(0),
-            InnerKind::ClaimRewards(tx) => tx
-                .clone()
-                .map(|data| data.serialize_to_vec().len())
-                .unwrap_or(0),
-            InnerKind::ProposalVote(tx) => tx
-                .clone()
-                .map(|data| data.serialize_to_vec().len())
-                .unwrap_or(0),
-            InnerKind::InitProposal(tx) => tx
-                .clone()
-                .map(|data| data.serialize_to_vec().len())
-                .unwrap_or(0),
-            InnerKind::MetadataChange(tx) => tx
-                .clone()
-                .map(|data| data.serialize_to_vec().len())
-                .unwrap_or(0),
-            InnerKind::CommissionChange(tx) => tx
-                .clone()
-                .map(|data| data.serialize_to_vec().len())
-                .unwrap_or(0),
-            InnerKind::RevealPk(tx) => tx
-                .clone()
-                .map(|data| data.serialize_to_vec().len())
-                .unwrap_or(0),
-            InnerKind::BecomeValidator(tx) => tx
-                .clone()
-                .map(|data| data.serialize_to_vec().len())
-                .unwrap_or(0),
-            InnerKind::Unknown(tx) => tx.len(),
         }
     }
 }
@@ -262,6 +142,7 @@ impl InnerKind {
 #[derive(Clone, Debug)]
 pub struct Inner {
     pub id: TxId,
+    pub size: usize,
     pub kind: InnerKind,
 }
 
@@ -283,9 +164,8 @@ impl Block {
                         .header()
                         .batch
                         .into_iter()
-                        .enumerate()
-                        .map(|(_index, tx_commitment)| {
-                            let inner_tx_id = compute_inner_tx_hash(
+                        .map(|tx_commitment| {
+                            let tx_id = compute_inner_tx_hash(
                                 Some(&wrapper_id),
                                 Either::Right(&tx_commitment),
                             )
@@ -300,20 +180,21 @@ impl Block {
                                 });
 
                             let tx_data = tx.data(&tx_commitment).unwrap_or_default();
+                            let tx_size = tx_data.len();
 
-                            let tx_kind = if let Some(id) = tx_code_id {
-                                if let Some(tx_code_name) = checksums.get_name_by_id(&id) {
-                                    InnerKind::from_code_name(&tx_code_name, &tx_data)
-                                } else {
-                                    InnerKind::Unknown(tx_data)
-                                }
-                            } else {
-                                InnerKind::Unknown(tx_data)
+                            let tx_code_name = match tx_code_id {
+                                Some(id) => checksums
+                                    .get_name_by_id(&id)
+                                    .unwrap_or_else(|| format!("no_tx_code_name_with_id_{}", id)),
+                                None => "no_tx_id".into(),
                             };
 
+                            let kind = InnerKind::from(&tx_code_name, &tx_data);
+
                             Inner {
-                                id: inner_tx_id,
-                                kind: tx_kind,
+                                id: tx_id,
+                                size: tx_size,
+                                kind,
                             }
                         })
                         .collect();
@@ -326,4 +207,26 @@ impl Block {
                 .collect(),
         }
     }
+
+    pub fn get_all_transfers(&self) -> Vec<Transfer> {
+        // TODO
+        vec![]
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum TransferKind {
+    Ibc,
+    Native,
+    Shielding,
+    Unshielding,
+}
+
+#[derive(Clone, Debug)]
+pub struct Transfer {
+    pub height: Height,
+    pub id: String,
+    pub kind: TransferKind,
+    pub token: String,
+    pub amount: u64,
 }

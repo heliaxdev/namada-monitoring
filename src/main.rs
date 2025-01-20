@@ -3,6 +3,7 @@ pub mod checks;
 pub mod config;
 pub mod error;
 pub mod log;
+pub mod metrics;
 pub mod rpc;
 pub mod shared;
 pub mod state;
@@ -10,13 +11,14 @@ pub mod state;
 use std::{sync::Arc, u64};
 
 use apprise::AppRise;
-use checks::all_checks;
+use checks::CheckCollection;
 use clap::Parser;
 use config::AppConfig;
 use error::AsRetryError;
+use metrics::MetricsCollection;
 use rpc::Rpc;
 use shared::checksums::Checksums;
-use state::{PrometheusMetrics, State};
+use state::State;
 use tokio::sync::RwLock;
 use tokio_retry2::{strategy::ExponentialBackoff, Retry};
 
@@ -79,10 +81,14 @@ async fn get_state_from_rpc(rpc: &Rpc, height: u64) -> anyhow::Result<State> {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let config =  AppConfig::parse();
+    let config = AppConfig::parse();
     config.log.init();
 
-    let apprise = AppRise::new(config.apprise_url.clone(), config.slack_token.clone(), config.slack_channel.clone());
+    let apprise = AppRise::new(
+        config.apprise_url.clone(),
+        config.slack_token.clone(),
+        config.slack_channel.clone(),
+    );
 
     let retry_strategy = retry_strategy().max_delay_millis(config.sleep_for * 1000);
     let rpc = Rpc::new(config.cometbft_urls.clone());
@@ -92,9 +98,10 @@ async fn main() -> anyhow::Result<()> {
         height => height,
     };
 
+    let checks = CheckCollection::new(&config);
+    let metrics = MetricsCollection::new(&config);
     let state = get_state_from_rpc(&rpc, initial_block_height).await?;
-    let metrics = PrometheusMetrics::new();
-    metrics.reset_metrics(&state);
+    metrics.reset(&state);
     metrics.start_exporter(config.prometheus_port)?;
 
     let current_state = Arc::new(RwLock::new(state));
@@ -111,29 +118,12 @@ async fn main() -> anyhow::Result<()> {
                     .await
                     .into_retry_error()?;
 
-                for check_kind in all_checks(&config){
-                    let check_res = match check_kind {
-                        checks::Checks::BlockHeightCheck(check) => {
-                            check.run(&pre_state, &post_state).await
-                        }
-                        checks::Checks::EpochCheck(check) => {
-                            check.run(&pre_state, &post_state).await
-                        }
-                        checks::Checks::TotalSupplyNative(check) => {
-                            check.run(&pre_state, &post_state).await
-                        }
-                        checks::Checks::TxSize(check) => check.run(&pre_state, &post_state).await,
-                        checks::Checks::BlockTimeCheck(check) => {
-                            check.run(&pre_state, &post_state).await
-                        }
-                    };
-                    if let Err(error) = check_res {
-                        tracing::error!("Error: {}", error.to_string());
-                        apprise
-                            .send_to_slack(error.to_string())
-                            .await
-                            .into_retry_error()?;
-                    }
+                if let Err(error) = checks.run(&pre_state, &post_state).await {
+                    tracing::error!("Error: {}", error.to_string());
+                    apprise
+                        .send_to_slack(error.to_string())
+                        .await
+                        .into_retry_error()?;
                 }
 
                 // update metrics
