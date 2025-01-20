@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fmt::Display;
 use namada_sdk::borsh::BorshDeserialize;
 use namada_sdk::governance::{InitProposalData, VoteProposalData};
@@ -7,8 +8,11 @@ use namada_sdk::key::common::PublicKey;
 use namada_sdk::token::Transfer as NamadaTransfer;
 use namada_sdk::tx::action::{Bond, ClaimRewards, Redelegation, Unbond, Withdraw};
 use namada_sdk::tx::data::pos::{BecomeValidator, CommissionChange, MetaDataChange};
+use namada_sdk::tx::data::TxResult;
 use namada_sdk::tx::{data::compute_inner_tx_hash, either::Either, Tx};
 use tendermint_rpc::endpoint::block::Response;
+use tendermint_rpc::endpoint::block_results::Response as TendermintBlockResultResponse;
+use std::str::FromStr;
 
 use super::checksums::Checksums;
 
@@ -37,6 +41,9 @@ pub struct Block {
 pub struct Wrapper {
     pub id: TxId,
     pub inners: Vec<Inner>,
+    pub gas_used: u64,
+    pub atomic: bool,
+    pub status: TransactionExitStatus,
 }
 
 
@@ -127,10 +134,123 @@ pub struct Inner {
     pub id: TxId,
     pub size: usize,
     pub kind: InnerKind,
+    pub was_applied: bool,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct BlockResult {
+    pub height: u64,
+    pub begin_events: Vec<Event>,
+    pub end_events: Vec<Event>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Event {
+    pub kind: EventKind,
+    pub attributes: Option<TxAttributesType>,
+}
+
+#[derive(Debug, Clone)]
+pub enum EventKind {
+    Applied,
+    Unknown,
+}
+
+impl From<&String> for EventKind {
+    fn from(value: &String) -> Self {
+        match value.as_str() {
+            "tx/applied" => Self::Applied,
+            _ => Self::Unknown,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum TxAttributesType {
+    TxApplied(TxApplied),
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct TxApplied {
+    pub code: TxEventStatusCode,
+    pub gas: u64,
+    pub hash: String,
+    pub height: u64,
+    pub batch: BatchResults,
+    pub info: String,
+}
+
+#[derive(Debug, Clone, Default, Copy)]
+pub enum TxEventStatusCode {
+    Ok,
+    #[default]
+    Fail,
+}
+
+impl From<&str> for TxEventStatusCode {
+    fn from(value: &str) -> Self {
+        match value {
+            "0" | "1" => Self::Ok,
+            _ => Self::Fail,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct BatchResults {
+    pub batch_errors: BTreeMap<String, BTreeMap<String, String>>,
+    pub batch_results: BTreeMap<String, bool>,
+}
+
+impl From<TxResult<String>> for BatchResults {
+    fn from(value: TxResult<String>) -> Self {
+        Self {
+            batch_results: value.0.iter().fold(
+                BTreeMap::default(),
+                |mut acc, (tx_hash, result)| {
+                    let tx_id = tx_hash.to_string();
+                    let result = if let Ok(result) = result {
+                        result.is_accepted()
+                    } else {
+                        false
+                    };
+                    acc.insert(tx_id, result);
+                    acc
+                },
+            ),
+            batch_errors: value
+                .0
+                .iter()
+                .fold(BTreeMap::default(), |mut acc, (tx_hash, result)| {
+                    let tx_id = tx_hash.to_string();
+                    let result = if let Ok(result) = result {
+                        result
+                            .vps_result
+                            .errors
+                            .iter()
+                            .map(|(address, error)| (address.to_string(), error.clone()))
+                            .collect()
+                    } else {
+                        BTreeMap::default()
+                    };
+                    acc.insert(tx_id, result);
+                    acc
+                }),
+        }
+    }
+}
+
+impl BatchResults {
+    pub fn is_successful(&self, tx_id: &str) -> bool {
+        match self.batch_results.get(tx_id) {
+            Some(result) => *result,
+            None => false,
+        }
+    }
 }
 
 impl Block {
-    pub fn from(response: Response, checksums: &Checksums, epoch: Epoch) -> Self {
+    pub fn from(response: Response, block_results: BlockResult, checksums: &Checksums, epoch: Epoch) -> Self {
         Self {
             height: response.block.header.height.value(),
             epoch,
@@ -142,6 +262,15 @@ impl Block {
                 .filter_map(|bytes| {
                     let tx = Tx::try_from(bytes.as_ref()).ok()?;
                     let wrapper_id = tx.header_hash();
+                    
+                    let wrapper_tx_id = wrapper_id.to_string();
+                    let wrapper_tx_status: TransactionExitStatus = block_results.is_wrapper_tx_applied(&wrapper_tx_id);
+                    let gas_used = block_results
+                        .gas_used(&wrapper_tx_id)
+                        .map(|gas| gas.parse::<u64>().unwrap_or_default())
+                        .unwrap_or_default();
+                    let atomic = tx.header().atomic;
+
 
                     let inners = tx
                         .header()
@@ -171,11 +300,19 @@ impl Block {
                             };
 
                             let kind =  InnerKind::from(&tx_code_name, &tx_data );
+                            let inner_tx_id = compute_inner_tx_hash(
+                                Some(&wrapper_id),
+                                Either::Right(&tx_commitment),
+                            )
+                            .to_string();
+                            let inner_tx_status =
+                                block_results.is_inner_tx_accepted(&wrapper_tx_id, &inner_tx_id);
 
                             Inner {
                                 id: tx_id,
                                 size: tx_size,
                                 kind,
+                                was_applied: inner_tx_status.was_applied(),
                             }
                         })
                         .collect();
@@ -183,6 +320,9 @@ impl Block {
                     Some(Wrapper {
                         id: wrapper_id.to_string(),
                         inners,
+                        gas_used,
+                        atomic,
+                        status: wrapper_tx_status,                  
                     })
                 })
                 .collect(),
@@ -210,4 +350,192 @@ pub struct Transfer {
     pub kind: TransferKind,
     pub token: String,
     pub amount: u64,
+}
+
+impl BlockResult {
+    pub fn is_wrapper_tx_applied(&self, tx_hash: &str) -> TransactionExitStatus {
+        let exit_status = self
+            .end_events
+            .iter()
+            .filter_map(|event| {
+                if let Some(TxAttributesType::TxApplied(data)) = &event.attributes {
+                    Some(data.clone())
+                } else {
+                    None
+                }
+            })
+            .find(|attributes| attributes.hash.eq(tx_hash))
+            .map(|attributes| attributes.clone().code)
+            .map(TransactionExitStatus::from);
+
+        exit_status.unwrap_or(TransactionExitStatus::Rejected)
+    }
+
+    pub fn gas_used(&self, tx_hash: &str) -> Option<String> {
+        self.end_events
+            .iter()
+            .filter_map(|event| {
+                if let Some(TxAttributesType::TxApplied(data)) = &event.attributes {
+                    Some(data.clone())
+                } else {
+                    None
+                }
+            })
+            .find(|attributes| attributes.hash.eq(tx_hash))
+            .map(|attributes| attributes.gas.to_string())
+    }
+
+    pub fn is_inner_tx_accepted(
+        &self,
+        wrapper_hash: &str,
+        inner_hash: &str,
+    ) -> TransactionExitStatus {
+        let exit_status = self
+            .end_events
+            .iter()
+            .filter_map(|event| {
+                if let Some(TxAttributesType::TxApplied(data)) = &event.attributes {
+                    Some(data.clone())
+                } else {
+                    None
+                }
+            })
+            .find(|attributes| attributes.hash.eq(wrapper_hash))
+            .map(|attributes| attributes.batch.is_successful(inner_hash))
+            .map(|successful| match successful {
+                true => TransactionExitStatus::Applied,
+                false => TransactionExitStatus::Rejected,
+            });
+        exit_status.unwrap_or(TransactionExitStatus::Rejected)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TransactionExitStatus {
+    Applied,
+    Rejected,
+}
+
+impl TransactionExitStatus {
+    pub fn was_applied(&self) -> bool {
+        matches!(self, Self::Applied)
+    }
+}
+
+impl Display for TransactionExitStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Applied => write!(f, "Applied"),
+            Self::Rejected => write!(f, "Rejected"),
+        }
+    }
+}
+
+impl From<TxEventStatusCode> for TransactionExitStatus {
+    fn from(value: TxEventStatusCode) -> Self {
+        match value {
+            TxEventStatusCode::Ok => Self::Applied,
+            TxEventStatusCode::Fail => Self::Rejected,
+        }
+    }
+}
+
+impl From<&TendermintBlockResultResponse> for BlockResult {
+    fn from(value: &TendermintBlockResultResponse) -> Self {
+        BlockResult::from(value.clone())
+    }
+}
+
+impl From<TendermintBlockResultResponse> for BlockResult {
+    fn from(value: TendermintBlockResultResponse) -> Self {
+        let begin_events = value
+            .begin_block_events
+            .unwrap_or_default()
+            .iter()
+            .map(|event| {
+                let kind = EventKind::from(&event.kind);
+                let raw_attributes = event.attributes.iter().fold(
+                    BTreeMap::default(),
+                    |mut acc, attribute| {
+                        acc.insert(
+                            String::from(attribute.key_str().unwrap()),
+                            String::from(attribute.value_str().unwrap()),
+                        );
+                        acc
+                    },
+                );
+                let attributes =
+                    TxAttributesType::deserialize(&kind, &raw_attributes);
+                Event { kind, attributes }
+            })
+            .collect::<Vec<Event>>();
+        let end_events = value
+            .end_block_events
+            .unwrap_or_default()
+            .iter()
+            .map(|event| {
+                let kind = EventKind::from(&event.kind);
+                let raw_attributes = event.attributes.iter().fold(
+                    BTreeMap::default(),
+                    |mut acc, attribute| {
+                        acc.insert(
+                            String::from(attribute.key_str().unwrap()),
+                            String::from(attribute.value_str().unwrap()),
+                        );
+                        acc
+                    },
+                );
+                let attributes =
+                    TxAttributesType::deserialize(&kind, &raw_attributes);
+                Event { kind, attributes }
+            })
+            .collect::<Vec<Event>>();
+        Self {
+            height: value.height.value(),
+            begin_events,
+            end_events,
+        }
+    }
+}
+
+impl TxAttributesType {
+    pub fn deserialize(
+        event_kind: &EventKind,
+        attributes: &BTreeMap<String, String>,
+    ) -> Option<Self> {
+        match event_kind {
+            EventKind::Unknown => None,
+            EventKind::Applied => Some(Self::TxApplied(TxApplied {
+                code: attributes
+                    .get("code")
+                    .map(|code| TxEventStatusCode::from(code.as_str()))
+                    .unwrap()
+                    .to_owned(),
+                gas: attributes
+                    .get("gas_used")
+                    .map(|gas| u64::from_str(gas).unwrap())
+                    .unwrap()
+                    .to_owned(),
+                hash: attributes
+                    .get("hash")
+                    .map(|hash| hash.to_lowercase())
+                    .unwrap()
+                    .to_owned(),
+                height: attributes
+                    .get("height")
+                    .map(|height| u64::from_str(height).unwrap())
+                    .unwrap()
+                    .to_owned(),
+                batch: attributes
+                    .get("batch")
+                    .map(|batch_result| {
+                        let tx_result: TxResult<String> =
+                            serde_json::from_str(batch_result).unwrap();
+                        BatchResults::from(tx_result)
+                    })
+                    .unwrap(),
+                info: attributes.get("info").unwrap().to_owned(),
+            })),
+        }
+    }
 }
