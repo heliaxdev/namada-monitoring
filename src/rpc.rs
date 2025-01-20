@@ -10,7 +10,7 @@ use tendermint_rpc::{HttpClient, Url};
 
 use crate::shared::{
     checksums::Checksums,
-    namada::{Address, Block, Epoch, Height, Validator},
+    namada::{Address, Block, BlockResult, Epoch, Height, Validator},
 };
 
 pub struct Rpc {
@@ -74,7 +74,18 @@ impl Rpc {
         let (res, _ready_future_index, _remaining_futures) =
             futures::future::select_all(futures).await;
 
-        res.map(|response| Block::from(response, checksums, epoch))
+        let events_futures = self
+            .clients
+            .iter()
+            .map(|client| client.block_results(block_height));
+        let (events_res, _ready_future_index, _remaining_futures) =
+            futures::future::select_all(events_futures).await;
+
+        let events = events_res
+            .map(|response| BlockResult::from(response))
+            .context("Should be able to query for block events")?;
+
+        res.map(|response| Block::from(response, events, checksums, epoch))
             .context("Should be able to query for block")
     }
 

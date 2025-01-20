@@ -3,7 +3,7 @@ use std::num::NonZeroUsize;
 use lru::LruCache;
 use prometheus_exporter::prometheus::{
     core::{AtomicU64, GenericCounter, GenericCounterVec},
-    GaugeVec, Histogram, HistogramOpts, IntCounterVec, Opts, Registry,
+    GaugeVec, Histogram, HistogramOpts, HistogramVec, IntCounterVec, Opts, Registry,
 };
 
 use crate::shared::{
@@ -29,6 +29,7 @@ pub struct PrometheusMetrics {
     pub one_third_threshold: GaugeVec,
     pub two_third_threshold: GaugeVec,
     pub transaction_size: Histogram,
+    pub gas: HistogramVec,
     pub bonds_per_epoch: GaugeVec,
     pub unbonds_per_epoch: GaugeVec,
     pub transaction_kind: GenericCounterVec<AtomicU64>,
@@ -80,6 +81,11 @@ impl PrometheusMetrics {
         let transaction_size = Histogram::with_opts(transaction_size_opts)
             .expect("unable to create histogram transaction sizes");
 
+        let gas_opts = HistogramOpts::new("gas", "The gas consumed by txs").buckets(vec![
+            10000.0, 20000.0, 40000.0, 80000.0, 160000.0, 32000.0, 640000.0,
+        ]);
+        let gas = HistogramVec::new(gas_opts, &["size"]).expect("unable to create histogram gas");
+
         let bonds_per_epoch_opts = Opts::new("bonds_per_epoch", "Total bonds per epoch");
         let bonds_per_epoch = GaugeVec::new(bonds_per_epoch_opts, &["epoch"])
             .expect("unable to create histogram transaction sizes");
@@ -90,9 +96,11 @@ impl PrometheusMetrics {
 
         let transaction_kind_opts =
             Opts::new("transaction_kind", "Total transaction per transaction kind");
-        let transaction_kind =
-            IntCounterVec::new(transaction_kind_opts, &["kind", "epoch", "height"])
-                .expect("unable to create histogram transaction sizes");
+        let transaction_kind = IntCounterVec::new(
+            transaction_kind_opts,
+            &["kind", "epoch", "height", "has_error"],
+        )
+        .expect("unable to create histogram transaction sizes");
 
         registry
             .register(Box::new(block_height_counter.clone()))
@@ -119,6 +127,7 @@ impl PrometheusMetrics {
         registry
             .register(Box::new(transaction_kind.clone()))
             .unwrap();
+        registry.register(Box::new(gas.clone())).unwrap();
 
         Self {
             block_height_counter,
@@ -130,6 +139,7 @@ impl PrometheusMetrics {
             bonds_per_epoch,
             unbonds_per_epoch,
             transaction_kind,
+            gas,
             registry,
         }
     }
@@ -205,6 +215,11 @@ impl State {
         }
 
         for tx in &block.transactions {
+            self.metrics
+                .gas
+                .with_label_values(&[&tx.inners.len().to_string()])
+                .observe(tx.gas_used as f64);
+
             for inner in &tx.inners {
                 let inner_kind = inner.kind.to_string();
 
@@ -214,6 +229,7 @@ impl State {
                         &inner_kind,
                         &block.epoch.to_string(),
                         &block.height.to_string(),
+                        &(!inner.was_applied).to_string(),
                     ])
                     .inc();
             }
