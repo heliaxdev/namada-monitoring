@@ -1,4 +1,5 @@
-use crate::{shared::namada::Address, state::State};
+use crate::state::State;
+use crate::shared::namada::Address;
 use anyhow::anyhow;
 
 #[derive(Clone, Debug, Default)]

@@ -1,5 +1,6 @@
 use anyhow::anyhow;
 
+
 use crate::shared::{
     checksums::Checksums,
     namada::{Address, Block, Height, Validator},
@@ -19,13 +20,13 @@ pub struct State {
 
 // #[derive(Debug, Clone)]
 // pub struct PrometheusMetrics {
-//     /// The latest block height recorded
-//     pub block_height_counter: GenericCounter<AtomicU64>,
-//     /// The latest epoch recorded
-//     pub epoch_counter: GenericCounter<AtomicU64>,
-//     /// The latest total supply native token recorded
-//     pub total_supply_native_token: GenericCounter<AtomicU64>,
-//     pub transaction_size: Histogram,
+////     /// The latest block height recorded
+////     pub block_height_counter: GenericCounter<AtomicU64>,
+////     /// The latest epoch recorded
+////     pub epoch_counter: GenericCounter<AtomicU64>,
+////     /// The latest total supply native token recorded
+////    pub total_supply_native_token: GenericCounter<AtomicU64>,
+////     pub transaction_size: Histogram,
 //     pub transaction_inner_size: Histogram,
 //     pub transaction_kind: GenericCounterVec<AtomicU64>,
 //     pub one_third_threshold: GaugeVec,
@@ -196,6 +197,7 @@ pub struct State {
 //             .with_label_values(&[&(post_state.block.epoch + 1).to_string()])
 //             .set(post_state.future_unbonds as f64);
 //     }
+
 
 //     // resets metrics to current state
 //     pub fn reset_metrics(&self, state: &State) {
