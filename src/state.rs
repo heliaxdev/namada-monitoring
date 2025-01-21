@@ -1,4 +1,4 @@
-use std::num::NonZeroUsize;
+use std::{collections::HashMap, num::NonZeroUsize};
 
 use lru::LruCache;
 use prometheus_exporter::prometheus::{
@@ -19,6 +19,7 @@ pub struct State {
     pub checksums: Checksums,
     pub blocks: LruCache<Height, Block>,
     pub metrics: PrometheusMetrics,
+    pub chain_id: String,
 }
 
 #[derive(Debug, Clone)]
@@ -35,15 +36,13 @@ pub struct PrometheusMetrics {
     registry: Registry,
 }
 
-impl Default for PrometheusMetrics {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl PrometheusMetrics {
-    pub fn new() -> Self {
-        let registry = Registry::new_custom(None, None).expect("Failed to create registry");
+    pub fn new(chain_id: String) -> Self {
+        let registry = Registry::new_custom(
+            Some("namada".to_string()),
+            Some(HashMap::from_iter([("chain_id".to_string(), chain_id)])),
+        )
+        .expect("Failed to create registry");
 
         let block_height_counter =
             GenericCounter::<AtomicU64>::new("block_height", "the latest block height recorded")
@@ -144,14 +143,15 @@ impl PrometheusMetrics {
 }
 
 impl State {
-    pub fn new(checksums: Checksums, block_height: u64) -> Self {
+    pub fn new(checksums: Checksums, block_height: u64, chain_id: String) -> Self {
         Self {
             latest_block_height: Some(block_height),
             latest_epoch: None,
             latest_total_supply_native: None,
             checksums,
             blocks: LruCache::new(NonZeroUsize::new(1024).unwrap()),
-            metrics: PrometheusMetrics::new(),
+            metrics: PrometheusMetrics::new(chain_id.clone()),
+            chain_id,
         }
     }
 
