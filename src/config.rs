@@ -6,6 +6,9 @@ pub struct AppConfig {
     pub cometbft_urls: Vec<String>,
 
     #[clap(long, env)]
+    pub chain_id: String,
+
+    #[clap(long, env)]
     pub slack_token: Option<String>,
 
     #[clap(long, env)]

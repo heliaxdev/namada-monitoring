@@ -47,6 +47,7 @@ async fn main() -> anyhow::Result<()> {
     let state = Arc::new(RwLock::new(State::new(
         checksums,
         config.initial_block_height,
+        config.chain_id
     )));
     let unlocked_state = state.read().await;
     let registry = unlocked_state.prometheus_registry();
