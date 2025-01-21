@@ -4,7 +4,7 @@ mod total_supply_native_token;
 mod transaction_size;
 mod voting_power;
 
-use std::net::SocketAddr;
+use std::{collections::HashMap, net::SocketAddr};
 
 use block_height_counter::BlockHeightCounter;
 use epoch_counter::EpochCounter;
@@ -67,8 +67,13 @@ pub struct MetricsCollection {
 }
 
 impl MetricsCollection {
-    pub fn new(_config: &AppConfig) -> Self {
-        let registry = Registry::new_custom(None, None).expect("Failed to create registry");
+    pub fn new(config: &AppConfig) -> Self {
+        let registry = Registry::new_custom(
+            Some("namada".to_string()),
+            Some(HashMap::from_iter([("chain_id".to_string(), config.chain_id.clone())])),
+        )
+        .expect("Failed to create registry");
+
         let metrics = vec![
             Metrics::BlockHeightCounter(BlockHeightCounter::default()),
             Metrics::EpochCounter(EpochCounter::default()),
@@ -97,7 +102,6 @@ impl MetricsCollection {
             metric.reset(state);
         }
     }
-
 
     pub fn update(&self, pre_state: &State, post_state: &State) {
         for metric in &self.metrics {

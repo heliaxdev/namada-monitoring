@@ -1,6 +1,5 @@
 use anyhow::anyhow;
 
-
 use crate::shared::{
     checksums::Checksums,
     namada::{Address, Block, Height, Validator},
@@ -45,7 +44,6 @@ pub struct State {
 // impl PrometheusMetrics {
 //     pub fn new() -> Self {
 //         let registry = Registry::new_custom(None, None).expect("Failed to create registry");
-
 //         let block_height_counter =
 //             GenericCounter::<AtomicU64>::new("block_height", "the latest block height recorded")
 //                 .expect("unable to create counter block_height");
