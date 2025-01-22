@@ -4,6 +4,7 @@ mod total_supply_native_token;
 mod transaction_size;
 mod voting_power;
 mod bonds;
+mod transfers;
 
 use std::{collections::HashMap, net::SocketAddr};
 
@@ -13,6 +14,7 @@ use total_supply_native_token::TotalSupplyNativeToken;
 use transaction_size::TransactionSize;
 use voting_power::VotingPower;
 use bonds::Bonds;
+use transfers::Transfers;
 
 use crate::{config::AppConfig, state::State};
 use anyhow::{Context, Result};
@@ -31,8 +33,11 @@ pub enum Metrics {
     VotingPower(VotingPower),
     /// The latest bounds/unbounds count
     Bounds(Bonds),
+    /// Total transfers by epoch and token
+    Transfers(Transfers),
 }
 
+// FIXME this could be a trait
 impl Metrics {
     pub fn reset(&self, state: &State) {
         match self {
@@ -42,6 +47,7 @@ impl Metrics {
             Metrics::TransactionSize(counter) => counter.reset(state),
             Metrics::VotingPower(counter) => counter.reset(state),
             Metrics::Bounds(counter) => counter.reset(state),
+            Metrics::Transfers(counter) => counter.reset(state),
         }
     }
 
@@ -53,6 +59,7 @@ impl Metrics {
             Metrics::TransactionSize(counter) => counter.register(registry),
             Metrics::VotingPower(counter) => counter.register(registry),
             Metrics::Bounds(counter) => counter.register(registry),
+            Metrics::Transfers(counter) => counter.register(registry),
         }
     }
 
@@ -64,6 +71,7 @@ impl Metrics {
             Metrics::TransactionSize(counter) => counter.update(pre_state, post_state),
             Metrics::VotingPower(counter) => counter.update(pre_state, post_state),
             Metrics::Bounds(counter) => counter.update(pre_state, post_state),
+            Metrics::Transfers(counter) => counter.update(pre_state, post_state),
         }
     }
 }
@@ -88,6 +96,7 @@ impl MetricsCollection {
             Metrics::TransactionSize(TransactionSize::default()),
             Metrics::VotingPower(VotingPower::default()),
             Metrics::Bounds(Bonds::default()),
+            Metrics::Transfers(Transfers::default()),
         ];
         for metric in &metrics {
             metric.register(&registry).expect("Failed to register metric");
