@@ -1,7 +1,6 @@
 use anyhow::anyhow;
 
 use crate::shared::{
-    checksums::Checksums,
     namada::{Address, Block, Height, Transfer, Validator},
 };
 

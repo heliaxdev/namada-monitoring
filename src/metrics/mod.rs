@@ -4,7 +4,6 @@ mod epoch_counter;
 mod total_supply_native_token;
 mod transactions;
 mod voting_power;
-mod bonds;
 mod transfers;
 
 use std::{collections::HashMap, net::SocketAddr};
@@ -15,7 +14,6 @@ use epoch_counter::EpochCounter;
 use total_supply_native_token::TotalSupplyNativeToken;
 use transactions::Transactions;
 use voting_power::VotingPower;
-use bonds::Bonds;
 use transfers::Transfers;
 
 use crate::{config::AppConfig, state::State};

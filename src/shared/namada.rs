@@ -1,5 +1,4 @@
 use namada_sdk::borsh::BorshDeserialize;
-use namada_sdk::eth_bridge::ethers::types::transaction;
 use namada_sdk::governance::{InitProposalData, VoteProposalData};
 use namada_sdk::ibc::IbcMessage;
 use namada_sdk::key::common::PublicKey;

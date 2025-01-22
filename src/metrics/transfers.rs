@@ -1,4 +1,3 @@
-use prometheus_exporter::prometheus::core::{AtomicU64, GenericCounter};
 use prometheus_exporter::prometheus::{GaugeVec, Opts, Registry};
 use anyhow::Result;
 use crate::state::State;
@@ -34,7 +33,7 @@ impl Transfers {
         }
     }
 
-    pub fn update(&self, pre_state: &State, post_state: &State) {
+    pub fn update(&self, _pre_state: &State, post_state: &State) {
         self.reset(post_state);        
     }
 }
