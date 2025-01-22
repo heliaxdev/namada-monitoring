@@ -125,9 +125,6 @@ impl Rpc {
             .map(BlockResult::from)
             .context(format!("Should be able to query for block events for height: {}", block_height))?;
 
-        let events =  BlockResult{height:0, begin_events:vec![], end_events:vec![]};
-
-
         res.map(|response| Block::from(response, events, checksums, epoch))
             .context(format!("Should be able to query for block for height: {}", block_height))
     }

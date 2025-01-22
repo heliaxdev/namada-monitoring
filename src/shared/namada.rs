@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::fmt::Display;
 use namada_sdk::borsh::BorshDeserialize;
+use namada_sdk::eth_bridge::ethers::types::transaction;
 use namada_sdk::governance::{InitProposalData, VoteProposalData};
 use namada_sdk::ibc::IbcMessage;
 use namada_sdk::key::common::PublicKey;
@@ -50,8 +51,8 @@ pub struct Wrapper {
 
 #[derive(Clone, Debug)]
 pub enum InnerKind {
-    TransparentTransfer(NamadaTransfer),
-    IbcMsgTransfer(Option<IbcMessage<NamadaTransfer>>),
+    Transfer(NamadaTransfer),
+    IbcMsgTransfer(IbcMessage<NamadaTransfer>),
     Bond(Bond),
     Redelegation(Redelegation),
     Unbond(Unbond),
@@ -73,7 +74,7 @@ pub enum InnerKind {
 impl Display for InnerKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            InnerKind::TransparentTransfer(_) => write!(f, "transfer"),
+            InnerKind::Transfer(_) => write!(f, "transfer"),
             InnerKind::IbcMsgTransfer(_) => write!(f, "ibc_transfer"),
             InnerKind::Bond(_) => write!(f, "bond"),
             InnerKind::Redelegation(_) => write!(f, "redelegate"),
@@ -104,7 +105,7 @@ impl InnerKind {
             "tx_transfer" => {
                 NamadaTransfer::try_from_slice(data).map_or_else(
                     default,
-                    |data| InnerKind::TransparentTransfer(data),
+                    |data| InnerKind::Transfer(data),
                 )
             }
             "tx_bond" => Bond::try_from_slice(data).map_or_else(default, |bond| { InnerKind::Bond(bond)}),
@@ -330,8 +331,57 @@ impl Block {
     }
 
     pub fn get_all_transfers(&self) -> Vec<Transfer> {
-        // TODO
-        vec![]
+        let mut transfers = Vec::new();
+        for tx in &self.transactions {
+            for inner in &tx.inners {
+                match &inner.kind {
+                    InnerKind::Transfer(transfer) => {
+                        let mut groups: BTreeMap<String, Vec<u64>> = BTreeMap::new();
+                        for (a, b) in &transfer.targets {
+                            groups.entry(a.token.to_string())
+                                .or_default()
+                                .push(b.amount().raw_amount().as_u64());
+                        }
+                        for (token, amounts) in groups {
+                            let total: u64 = amounts.iter().sum();
+                            transfers.push(Transfer {
+                                height: self.height,
+                                id: inner.id.clone(),
+                                kind: TransferKind::Native,
+                                token: token.clone(),
+                                amount: total,
+                                accepted: inner.was_applied,
+                            });
+                        }
+                    }
+                    InnerKind::IbcMsgTransfer(ibc_message) => {
+                        if let IbcMessage::Transfer(msg_transfer) = ibc_message {
+                            if let Some(transfer) = &msg_transfer.transfer {
+                                let mut groups: BTreeMap<String, Vec<u64>> = BTreeMap::new();
+                                for (a, b) in &transfer.targets {
+                                    groups.entry(a.token.to_string())
+                                        .or_default()
+                                        .push(b.amount().raw_amount().as_u64());
+                                }
+                                for (token, amounts) in groups {
+                                    let total: u64 = amounts.iter().sum();
+                                    transfers.push(Transfer {
+                                        height: self.height,
+                                        id: inner.id.clone(),
+                                        kind: TransferKind::Native,
+                                        token: token.clone(),
+                                        amount: total,
+                                        accepted: inner.was_applied,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        transfers
     }
 }
 
@@ -350,6 +400,7 @@ pub struct Transfer {
     pub kind: TransferKind,
     pub token: String,
     pub amount: u64,
+    pub accepted: bool,
 }
 
 impl BlockResult {

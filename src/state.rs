@@ -2,7 +2,7 @@ use anyhow::anyhow;
 
 use crate::shared::{
     checksums::Checksums,
-    namada::{Address, Block, Height, Validator},
+    namada::{Address, Block, Height, Transfer, Validator},
 };
 
 #[derive(Debug, Clone)]
@@ -19,13 +19,9 @@ pub struct State {
 
 // #[derive(Debug, Clone)]
 // pub struct PrometheusMetrics {
-////     /// The latest block height recorded
-////     pub block_height_counter: GenericCounter<AtomicU64>,
-////     /// The latest epoch recorded
-////     pub epoch_counter: GenericCounter<AtomicU64>,
 ////     /// The latest total supply native token recorded
-////    pub total_supply_native_token: GenericCounter<AtomicU64>,
-////     pub transaction_size: Histogram,
+//    pub total_supply_native_token: GenericCounter<AtomicU64>,
+//     pub transaction_size: Histogram,
 //     pub transaction_inner_size: Histogram,
 //     pub transaction_kind: GenericCounterVec<AtomicU64>,
 //     pub one_third_threshold: GaugeVec,
@@ -308,4 +304,9 @@ impl State {
     pub fn get_epoch(&self) -> u64 {
         self.block.epoch
     }
+
+    pub fn get_all_transfers(&self) -> Vec<Transfer> {
+        self.block.get_all_transfers()
+    }
+
 }
