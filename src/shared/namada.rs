@@ -89,7 +89,7 @@ impl Display for InnerKind {
             InnerKind::DeactivateValidator(_) => write!(f, "deactivate_validator"),
             InnerKind::ReactivateValidator(_) => write!(f, "reactivate_validator"),
             InnerKind::UnjailValidator(_) => write!(f, "unjail_validator"),
-            InnerKind::Unknown(..) => write!(f, "unknown"),
+            InnerKind::Unknown(code_name, ..) => write!(f, "unknown({})", code_name),
         }
     }
 }

@@ -10,7 +10,7 @@ use std::{collections::HashMap, net::SocketAddr};
 use block_height_counter::BlockHeightCounter;
 use epoch_counter::EpochCounter;
 use total_supply_native_token::TotalSupplyNativeToken;
-use transaction_size::TransactionSize;
+use transaction_size::Transactions;
 use voting_power::VotingPower;
 use bonds::Bonds;
 
@@ -26,7 +26,7 @@ pub enum Metrics {
     /// The latest total supply native token recorded
     TotalNativeTokenSupply(TotalSupplyNativeToken),
     /// The latest transaction size recorded
-    TransactionSize(TransactionSize),
+    TransactionSize(Transactions),
     /// The latest voting power recorded in thirds
     VotingPower(VotingPower),
     /// The latest bounds/unbounds count
@@ -85,7 +85,7 @@ impl MetricsCollection {
             Metrics::BlockHeightCounter(BlockHeightCounter::default()),
             Metrics::EpochCounter(EpochCounter::default()),
             Metrics::TotalNativeTokenSupply(TotalSupplyNativeToken::default()),
-            Metrics::TransactionSize(TransactionSize::default()),
+            Metrics::TransactionSize(Transactions::default()),
             Metrics::VotingPower(VotingPower::default()),
             Metrics::Bounds(Bonds::default()),
         ];
