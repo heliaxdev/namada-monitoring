@@ -3,6 +3,7 @@ mod epoch_counter;
 mod total_supply_native_token;
 mod transaction_size;
 mod voting_power;
+mod bonds;
 
 use std::{collections::HashMap, net::SocketAddr};
 
@@ -11,6 +12,7 @@ use epoch_counter::EpochCounter;
 use total_supply_native_token::TotalSupplyNativeToken;
 use transaction_size::TransactionSize;
 use voting_power::VotingPower;
+use bonds::Bonds;
 
 use crate::{config::AppConfig, state::State};
 use anyhow::{Context, Result};
@@ -27,6 +29,8 @@ pub enum Metrics {
     TransactionSize(TransactionSize),
     /// The latest voting power recorded in thirds
     VotingPower(VotingPower),
+    /// The latest bounds/unbounds count
+    Bounds(Bonds),
 }
 
 impl Metrics {
@@ -37,6 +41,7 @@ impl Metrics {
             Metrics::TotalNativeTokenSupply(counter) => counter.reset(state),
             Metrics::TransactionSize(counter) => counter.reset(state),
             Metrics::VotingPower(counter) => counter.reset(state),
+            Metrics::Bounds(counter) => counter.reset(state),
         }
     }
 
@@ -47,6 +52,7 @@ impl Metrics {
             Metrics::TotalNativeTokenSupply(counter) => counter.register(registry),
             Metrics::TransactionSize(counter) => counter.register(registry),
             Metrics::VotingPower(counter) => counter.register(registry),
+            Metrics::Bounds(counter) => counter.register(registry),
         }
     }
 
@@ -57,6 +63,7 @@ impl Metrics {
             Metrics::TotalNativeTokenSupply(counter) => counter.update(pre_state, post_state),
             Metrics::TransactionSize(counter) => counter.update(pre_state, post_state),
             Metrics::VotingPower(counter) => counter.update(pre_state, post_state),
+            Metrics::Bounds(counter) => counter.update(pre_state, post_state),
         }
     }
 }
@@ -70,7 +77,7 @@ impl MetricsCollection {
     pub fn new(config: &AppConfig) -> Self {
         let registry = Registry::new_custom(
             Some("namada".to_string()),
-            Some(HashMap::from_iter([("chain_id".to_string(), config.chain_id.clone())])),
+            Some(HashMap::from_iter([("chain_id".to_string(), config.chain_id.as_ref().unwrap().to_string())])),
         )
         .expect("Failed to create registry");
 
@@ -80,6 +87,7 @@ impl MetricsCollection {
             Metrics::TotalNativeTokenSupply(TotalSupplyNativeToken::default()),
             Metrics::TransactionSize(TransactionSize::default()),
             Metrics::VotingPower(VotingPower::default()),
+            Metrics::Bounds(Bonds::default()),
         ];
         for metric in &metrics {
             metric.register(&registry).expect("Failed to register metric");

@@ -292,4 +292,20 @@ impl State {
     pub fn get_total_supply_native_token(&self) -> u64 {
         self.total_supply_native
     }
+
+    pub fn get_future_bonds(&self) -> u64 {
+        self.future_bonds
+    }
+    
+    pub fn get_future_unbonds(&self) -> u64 {
+        self.future_unbonds
+    }
+
+    pub fn get_block(&self) -> &Block {
+        &self.block
+    }
+
+    pub fn get_epoch(&self) -> u64 {
+        self.block.epoch
+    }
 }

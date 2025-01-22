@@ -81,7 +81,7 @@ async fn get_state_from_rpc(rpc: &Rpc, height: u64) -> anyhow::Result<State> {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let config = AppConfig::parse();
+    let mut config = AppConfig::parse();
     config.log.init();
 
     let apprise = AppRise::new(
@@ -90,8 +90,19 @@ async fn main() -> anyhow::Result<()> {
         config.slack_channel.clone(),
     );
 
-    let retry_strategy = retry_strategy().max_delay_millis(config.sleep_for * 1000);
+    let retry_strategy = retry_strategy(config.sleep_for);
     let rpc = Rpc::new(config.cometbft_urls.clone());
+    let chain_id = rpc.get_chain_id().await?;
+    match config.chain_id.as_ref() {
+        Some(expected_chain_id) if &chain_id != expected_chain_id => {
+            return Err(anyhow::anyhow!(
+                "Chain ID mismatch: expected {}, got {}",
+                expected_chain_id,
+                chain_id
+            ));
+        }
+        _ => {config.chain_id = Some(chain_id)}
+    }
 
     let initial_block_height = match config.initial_block_height {
         u64::MAX => rpc.query_lastest_height().await?,
@@ -141,8 +152,8 @@ async fn main() -> anyhow::Result<()> {
     }
 }
 
-fn retry_strategy() -> ExponentialBackoff {
+fn retry_strategy(max_delay_milis: u64) -> ExponentialBackoff {
     ExponentialBackoff::from_millis(1000)
         .factor(1)
-        .max_delay_millis(10000)
+        .max_delay_millis(max_delay_milis)
 }

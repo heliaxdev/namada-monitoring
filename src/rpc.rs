@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{collections::HashSet, str::FromStr};
 
 use anyhow::Context;
 use futures::FutureExt;
@@ -31,6 +31,29 @@ impl Rpc {
                 })
                 .collect(),
         }
+    }
+
+    pub async fn get_chain_id(&self) -> anyhow::Result<String> {
+        let mut chain_id= None;
+        for client in &self.clients{
+            let current_chain_id = match client.status().await{
+                Ok(status) => {
+                    let network = status.node_info.network.clone();
+                    String::from(network)
+                },
+                Err(err) =>return Err(anyhow::anyhow!("Failed to get status: {:?}", err)),
+            };
+
+        
+            if let Some(existing_chain_id) = &chain_id {
+                if existing_chain_id != &current_chain_id {
+                    return Err(anyhow::anyhow!("Chain IDs do not match: {} != {}", existing_chain_id, current_chain_id));
+                }
+            } else {
+                chain_id = Some(current_chain_id);
+            }
+        }
+        Ok(chain_id.unwrap().to_string())
     }
 
     pub async fn query_tx_code_hash(
@@ -86,24 +109,27 @@ impl Rpc {
         checksums: &Checksums,
         epoch: Epoch,
     ) -> anyhow::Result<Block> {
-        let futures = self.clients.iter().map(|client| client.block(block_height));
-
-        let (res, _ready_future_index, _remaining_futures) =
-            futures::future::select_all(futures).await;
-
-            let events_futures = self
+        let block_futures = self.clients.iter().map(|client| client.block(block_height));
+        let events_futures = self
             .clients
             .iter()
             .map(|client| client.block_results(block_height));
+
+        let (res, _ready_future_index, _remaining_futures) =
+            futures::future::select_all(block_futures).await;
+
         let (events_res, _ready_future_index, _remaining_futures) =
             futures::future::select_all(events_futures).await;
 
         let events = events_res
-            .map(|response| BlockResult::from(response))
-            .context("Should be able to query for block events")?;
+            .map(BlockResult::from)
+            .context(format!("Should be able to query for block events for height: {}", block_height))?;
+
+        let events =  BlockResult{height:0, begin_events:vec![], end_events:vec![]};
+
 
         res.map(|response| Block::from(response, events, checksums, epoch))
-            .context("Should be able to query for block")
+            .context(format!("Should be able to query for block for height: {}", block_height))
     }
 
     pub async fn query_validators(&self, epoch: Epoch) -> anyhow::Result<Vec<Validator>> {
