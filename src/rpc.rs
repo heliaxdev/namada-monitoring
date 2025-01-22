@@ -1,5 +1,4 @@
-use std::{collections::HashSet, str::FromStr};
-
+use std::str::FromStr;
 use anyhow::Context;
 use futures::FutureExt;
 use namada_sdk::{

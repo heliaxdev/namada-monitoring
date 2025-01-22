@@ -41,7 +41,7 @@ async fn get_checksums_at_height(rpc: &Rpc, height: u64) -> anyhow::Result<Check
 }
 
 async fn get_state_from_rpc(rpc: &Rpc, height: u64) -> anyhow::Result<State> {
-    let checksums = get_checksums_at_height(&rpc, height).await?;
+    let checksums = get_checksums_at_height(rpc, height).await?;
     let native_token = rpc.query_native_token().await.into_retry_error()?;
 
     let epoch = rpc
@@ -68,8 +68,8 @@ async fn get_state_from_rpc(rpc: &Rpc, height: u64) -> anyhow::Result<State> {
     let validators = rpc.query_validators(epoch).await.into_retry_error()?;
 
     Ok(State::new(
+        //checksums,
         block,
-        checksums,
         native_token,
         max_block_time_estimate,
         total_supply_native,

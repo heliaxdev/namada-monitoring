@@ -1,7 +1,7 @@
 mod block_height_counter;
 mod epoch_counter;
 mod total_supply_native_token;
-mod transaction_size;
+mod transactions;
 mod voting_power;
 mod bonds;
 mod transfers;
@@ -11,7 +11,7 @@ use std::{collections::HashMap, net::SocketAddr};
 use block_height_counter::BlockHeightCounter;
 use epoch_counter::EpochCounter;
 use total_supply_native_token::TotalSupplyNativeToken;
-use transaction_size::Transactions;
+use transactions::Transactions;
 use voting_power::VotingPower;
 use bonds::Bonds;
 use transfers::Transfers;
@@ -27,8 +27,8 @@ pub enum Metrics {
     EpochCounter(EpochCounter),
     /// The latest total supply native token recorded
     TotalNativeTokenSupply(TotalSupplyNativeToken),
-    /// The latest transaction size recorded
-    TransactionSize(Transactions),
+    /// Various transaction metrics
+    Transactions(Transactions),
     /// The latest voting power recorded in thirds
     VotingPower(VotingPower),
     /// The latest bounds/unbounds count
@@ -44,7 +44,7 @@ impl Metrics {
             Metrics::BlockHeightCounter(counter) => counter.reset(state),
             Metrics::EpochCounter(counter) => counter.reset(state),
             Metrics::TotalNativeTokenSupply(counter) => counter.reset(state),
-            Metrics::TransactionSize(counter) => counter.reset(state),
+            Metrics::Transactions(counter) => counter.reset(state),
             Metrics::VotingPower(counter) => counter.reset(state),
             Metrics::Bounds(counter) => counter.reset(state),
             Metrics::Transfers(counter) => counter.reset(state),
@@ -56,7 +56,7 @@ impl Metrics {
             Metrics::BlockHeightCounter(counter) => counter.register(registry),
             Metrics::EpochCounter(counter) => counter.register(registry),
             Metrics::TotalNativeTokenSupply(counter) => counter.register(registry),
-            Metrics::TransactionSize(counter) => counter.register(registry),
+            Metrics::Transactions(counter) => counter.register(registry),
             Metrics::VotingPower(counter) => counter.register(registry),
             Metrics::Bounds(counter) => counter.register(registry),
             Metrics::Transfers(counter) => counter.register(registry),
@@ -68,7 +68,7 @@ impl Metrics {
             Metrics::BlockHeightCounter(counter) => counter.update(pre_state, post_state),
             Metrics::EpochCounter(counter) => counter.update(pre_state, post_state),
             Metrics::TotalNativeTokenSupply(counter) => counter.update(pre_state, post_state),
-            Metrics::TransactionSize(counter) => counter.update(pre_state, post_state),
+            Metrics::Transactions(counter) => counter.update(pre_state, post_state),
             Metrics::VotingPower(counter) => counter.update(pre_state, post_state),
             Metrics::Bounds(counter) => counter.update(pre_state, post_state),
             Metrics::Transfers(counter) => counter.update(pre_state, post_state),
@@ -93,7 +93,7 @@ impl MetricsCollection {
             Metrics::BlockHeightCounter(BlockHeightCounter::default()),
             Metrics::EpochCounter(EpochCounter::default()),
             Metrics::TotalNativeTokenSupply(TotalSupplyNativeToken::default()),
-            Metrics::TransactionSize(Transactions::default()),
+            Metrics::Transactions(Transactions::default()),
             Metrics::VotingPower(VotingPower::default()),
             Metrics::Bounds(Bonds::default()),
             Metrics::Transfers(Transfers::default()),
