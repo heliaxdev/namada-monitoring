@@ -101,7 +101,7 @@ async fn main() -> anyhow::Result<()> {
                 chain_id
             ));
         }
-        _ => {config.chain_id = Some(chain_id)}
+        _ => config.chain_id = Some(chain_id),
     }
 
     let initial_block_height = match config.initial_block_height {

@@ -1,4 +1,5 @@
 mod block_height_counter;
+mod bonds;
 mod epoch_counter;
 mod total_supply_native_token;
 mod transactions;
@@ -9,6 +10,7 @@ mod transfers;
 use std::{collections::HashMap, net::SocketAddr};
 
 use block_height_counter::BlockHeightCounter;
+use bonds::Bonds;
 use epoch_counter::EpochCounter;
 use total_supply_native_token::TotalSupplyNativeToken;
 use transactions::Transactions;
@@ -85,7 +87,10 @@ impl MetricsCollection {
     pub fn new(config: &AppConfig) -> Self {
         let registry = Registry::new_custom(
             Some("namada".to_string()),
-            Some(HashMap::from_iter([("chain_id".to_string(), config.chain_id.as_ref().unwrap().to_string())])),
+            Some(HashMap::from_iter([(
+                "chain_id".to_string(),
+                config.chain_id.as_ref().unwrap().to_string(),
+            )])),
         )
         .expect("Failed to create registry");
 
@@ -99,9 +104,11 @@ impl MetricsCollection {
             Metrics::Transfers(Transfers::default()),
         ];
         for metric in &metrics {
-            metric.register(&registry).expect("Failed to register metric");
+            metric
+                .register(&registry)
+                .expect("Failed to register metric");
         }
-        Self { metrics, registry }        
+        Self { metrics, registry }
     }
     pub fn start_exporter(&self, port: u64) -> anyhow::Result<()> {
         let addr_raw = format!("0.0.0.0:{}", port);

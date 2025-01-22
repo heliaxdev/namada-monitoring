@@ -103,7 +103,7 @@ impl State {
     pub fn get_future_bonds(&self) -> u64 {
         self.future_bonds
     }
-    
+
     pub fn get_future_unbonds(&self) -> u64 {
         self.future_unbonds
     }

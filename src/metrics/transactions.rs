@@ -1,6 +1,9 @@
 use crate::state::State;
 use anyhow::Result;
-use prometheus_exporter::prometheus::{core::{AtomicU64, GenericCounterVec}, Histogram, HistogramOpts, IntCounterVec, Opts, Registry};
+use prometheus_exporter::prometheus::{
+    core::{AtomicU64, GenericCounterVec},
+    Histogram, HistogramOpts, IntCounterVec, Opts, Registry,
+};
 
 pub struct Transactions {
     /// inner transactions count in the batch histogram
@@ -25,8 +28,10 @@ impl Transactions {
             IntCounterVec::new(transaction_kind_opts, &["kind", "epoch" /* , "height"*/])
                 .expect("unable to create int counter for transaction kinds");
 
-
-        Self { transaction_batch_size, transaction_kind }
+        Self {
+            transaction_batch_size,
+            transaction_kind,
+        }
     }
 
     pub fn register(&self, registry: &Registry) -> Result<()> {
@@ -50,7 +55,7 @@ impl Transactions {
                         &post_state.get_epoch().to_string(),
                         // &post_state.get_block().height.to_string(),
                     ])
-                    .inc();                
+                    .inc();
             }
         }
     }

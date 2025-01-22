@@ -1,9 +1,9 @@
+use crate::state::State;
+use anyhow::Result;
 use prometheus_exporter::prometheus::core::{AtomicU64, GenericCounter};
 use prometheus_exporter::prometheus::Registry;
-use anyhow::Result;
-use crate::state::State;
 
-pub struct EpochCounter{
+pub struct EpochCounter {
     /// The latest epoch recorded
     epoch_counter: GenericCounter<AtomicU64>,
 }
@@ -16,7 +16,7 @@ impl EpochCounter {
         }
     }
 
-    pub fn register(&self, registry: &Registry) -> Result<()>{
+    pub fn register(&self, registry: &Registry) -> Result<()> {
         registry.register(Box::new(self.epoch_counter.clone()))?;
         Ok(())
     }
@@ -29,6 +29,5 @@ impl EpochCounter {
     pub fn update(&self, pre_state: &State, post_state: &State) {
         self.epoch_counter
             .inc_by(post_state.get_last_block().epoch - pre_state.get_last_block().epoch);
-        
     }
 }

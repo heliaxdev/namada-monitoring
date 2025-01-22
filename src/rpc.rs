@@ -1,4 +1,3 @@
-use std::str::FromStr;
 use anyhow::Context;
 use futures::FutureExt;
 use namada_sdk::{
@@ -8,6 +7,7 @@ use namada_sdk::{
     rpc,
     state::{BlockHeight, Epoch as NamadaEpoch, Key},
 };
+use std::str::FromStr;
 use tendermint_rpc::{HttpClient, Url};
 
 use crate::shared::{
@@ -33,20 +33,23 @@ impl Rpc {
     }
 
     pub async fn get_chain_id(&self) -> anyhow::Result<String> {
-        let mut chain_id= None;
-        for client in &self.clients{
-            let current_chain_id = match client.status().await{
+        let mut chain_id = None;
+        for client in &self.clients {
+            let current_chain_id = match client.status().await {
                 Ok(status) => {
                     let network = status.node_info.network.clone();
                     String::from(network)
-                },
-                Err(err) =>return Err(anyhow::anyhow!("Failed to get status: {:?}", err)),
+                }
+                Err(err) => return Err(anyhow::anyhow!("Failed to get status: {:?}", err)),
             };
 
-        
             if let Some(existing_chain_id) = &chain_id {
                 if existing_chain_id != &current_chain_id {
-                    return Err(anyhow::anyhow!("Chain IDs do not match: {} != {}", existing_chain_id, current_chain_id));
+                    return Err(anyhow::anyhow!(
+                        "Chain IDs do not match: {} != {}",
+                        existing_chain_id,
+                        current_chain_id
+                    ));
                 }
             } else {
                 chain_id = Some(current_chain_id);
@@ -120,12 +123,16 @@ impl Rpc {
         let (events_res, _ready_future_index, _remaining_futures) =
             futures::future::select_all(events_futures).await;
 
-        let events = events_res
-            .map(BlockResult::from)
-            .context(format!("Should be able to query for block events for height: {}", block_height))?;
+        let events = events_res.map(BlockResult::from).context(format!(
+            "Should be able to query for block events for height: {}",
+            block_height
+        ))?;
 
         res.map(|response| Block::from(response, events, checksums, epoch))
-            .context(format!("Should be able to query for block for height: {}", block_height))
+            .context(format!(
+                "Should be able to query for block for height: {}",
+                block_height
+            ))
     }
 
     pub async fn query_validators(&self, epoch: Epoch) -> anyhow::Result<Vec<Validator>> {
@@ -213,5 +220,4 @@ impl Rpc {
                 )
             })
     }
-
 }
