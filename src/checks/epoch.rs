@@ -1,31 +1,21 @@
+use crate::state::State;
 use anyhow::anyhow;
 
 #[derive(Clone, Debug, Default)]
 pub struct EpochCheck {}
 
 impl EpochCheck {
-    pub async fn run(
-        &self,
-        pre_state: &crate::state::State,
-        post_state: &crate::state::State,
-    ) -> anyhow::Result<()> {
-        match (pre_state.latest_epoch, post_state.latest_epoch) {
-            (None, None) => Ok(()),    // nothing happen yet
-            (None, Some(_)) => Ok(()), // first epoch
-            (Some(pre_epoch), None) => {
-                Err(anyhow!("Invalid state: pre {} -> post None", pre_epoch))
-            } // should never happen
-            (Some(pre_epoch), Some(post_epoch)) => {
-                if pre_epoch <= post_epoch {
-                    Ok(())
-                } else {
-                    Err(anyhow!(
-                        "Invalid epoch: pre {} -> post {}",
-                        pre_epoch,
-                        post_epoch
-                    ))
-                }
-            }
+    pub async fn run(&self, pre_state: &State, post_state: &State) -> anyhow::Result<()> {
+        let pre_epoch = pre_state.get_last_block().epoch;
+        let post_epoch = post_state.get_last_block().epoch;
+        if pre_epoch == post_epoch || pre_epoch.checked_add(1).unwrap_or_default() == post_epoch {
+            Ok(())
+        } else {
+            Err(anyhow!(
+                "Invalid epoch: pre {} -> post {}",
+                pre_epoch,
+                post_epoch
+            ))
         }
     }
 }

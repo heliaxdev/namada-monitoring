@@ -3,19 +3,19 @@ pub mod checks;
 pub mod config;
 pub mod error;
 pub mod log;
+pub mod metrics;
 pub mod rpc;
 pub mod shared;
 pub mod state;
 
-use std::{net::SocketAddr, sync::Arc};
+use std::{sync::Arc, u64};
 
-use anyhow::Context;
 use apprise::AppRise;
-use checks::all_checks;
+use checks::CheckCollection;
 use clap::Parser;
 use config::AppConfig;
 use error::AsRetryError;
-use prometheus_exporter::prometheus::Registry;
+use metrics::MetricsCollection;
 use rpc::Rpc;
 use shared::checksums::Checksums;
 use state::State;
@@ -23,103 +23,125 @@ use tokio::sync::RwLock;
 use tokio_retry2::{strategy::ExponentialBackoff, Retry};
 
 fn notify(err: &std::io::Error, duration: std::time::Duration) {
-    tracing::info!("Error {err:?} occurred at {duration:?}");
+    if duration.as_secs() > 100 {
+        tracing::warn!("Error {err:?} occurred at {duration:?}");
+    }
 }
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    let config = AppConfig::parse();
-    config.log.init();
-
-    let apprise = AppRise::new(config.apprise_url, config.slack_token, config.slack_channel);
-
-    let rpc = Rpc::new(config.cometbft_urls);
-
+async fn get_checksums_at_height(rpc: &Rpc, height: u64) -> anyhow::Result<Checksums> {
     let mut checksums = Checksums::default();
     for code_path in Checksums::code_paths() {
         let code = rpc
-            .query_tx_code_hash(&code_path)
+            .query_tx_code_hash(&code_path, height)
             .await?
             .unwrap_or_else(|| panic!("{} must be defined in namada storage.", code_path));
         checksums.add(code_path, code);
     }
+    Ok(checksums)
+}
 
-    let state = Arc::new(RwLock::new(State::new(
-        checksums,
-        config.initial_block_height,
-        config.chain_id
-    )));
-    let unlocked_state = state.read().await;
-    let registry = unlocked_state.prometheus_registry();
-    drop(unlocked_state);
+async fn get_state_from_rpc(rpc: &Rpc, height: u64) -> anyhow::Result<State> {
+    let checksums = get_checksums_at_height(rpc, height).await?;
+    let native_token = rpc.query_native_token().await.into_retry_error()?;
 
-    start_prometheus_exporter(registry, config.prometheus_port)?;
+    let epoch = rpc
+        .query_current_epoch(height)
+        .await
+        .into_retry_error()?
+        .unwrap_or(0);
+    let block = rpc
+        .query_block(height, &checksums, epoch)
+        .await
+        .into_retry_error()?;
+    let max_block_time_estimate = rpc
+        .query_max_block_time_estimate()
+        .await
+        .into_retry_error()?;
+    let total_supply_native = rpc
+        .query_total_supply(&native_token)
+        .await
+        .into_retry_error()?;
+    let (future_bonds, future_unbonds) = rpc
+        .query_future_bonds_and_unbonds(epoch)
+        .await
+        .into_retry_error()?;
+    let validators = rpc.query_validators(epoch).await.into_retry_error()?;
 
-    let retry_strategy = retry_strategy();
+    Ok(State::new(
+        //checksums,
+        block,
+        native_token,
+        max_block_time_estimate,
+        total_supply_native,
+        validators,
+        future_bonds,
+        future_unbonds,
+    ))
+}
 
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    let mut config = AppConfig::parse();
+    config.log.init();
+
+    let apprise = AppRise::new(
+        config.apprise_url.clone(),
+        config.slack_token.clone(),
+        config.slack_channel.clone(),
+    );
+
+    let retry_strategy = retry_strategy(config.sleep_for);
+    let rpc = Rpc::new(config.cometbft_urls.clone());
+    let chain_id = rpc.get_chain_id().await?;
+    match config.chain_id.as_ref() {
+        Some(expected_chain_id) if &chain_id != expected_chain_id => {
+            return Err(anyhow::anyhow!(
+                "Chain ID mismatch: expected {}, got {}",
+                expected_chain_id,
+                chain_id
+            ));
+        }
+        _ => config.chain_id = Some(chain_id),
+    }
+
+    let initial_block_height = match config.initial_block_height {
+        u64::MAX => rpc.query_lastest_height().await?,
+        height => height,
+    };
+
+    let checks = CheckCollection::new(&config);
+    let metrics = MetricsCollection::new(&config);
+    let state = get_state_from_rpc(&rpc, initial_block_height).await?;
+    metrics.reset(&state);
+    metrics.start_exporter(config.prometheus_port)?;
+
+    let current_state = Arc::new(RwLock::new(state));
     loop {
         Retry::spawn_notify(
             retry_strategy.clone(),
             || async {
-                let pre_state_lock = state.read().await;
-                let block_height = pre_state_lock.next_block_height();
-                let checksums = pre_state_lock.checksums.clone();
-                let pre_state = pre_state_lock.clone();
-                drop(pre_state_lock);
+                // lock is dropped at the end of the line
+                let pre_state = current_state.read().await.clone();
 
-                let native_token = rpc.query_native_token().await.into_retry_error()?;
-                let epoch = rpc
-                    .query_current_epoch(block_height)
-                    .await
-                    .into_retry_error()?
-                    .unwrap_or(0);
-                let block = rpc
-                    .query_block(block_height, &checksums, epoch)
+                // immediate next block
+                let block_height = pre_state.next_block_height();
+                let post_state = get_state_from_rpc(&rpc, block_height)
                     .await
                     .into_retry_error()?;
-                let total_supply_native = rpc
-                    .query_total_supply(&native_token)
-                    .await
-                    .into_retry_error()?;
-                let (future_bonds, future_unbonds) = rpc
-                    .query_future_bonds_and_unbonds(epoch)
-                    .await
-                    .into_retry_error()?;
-                let validators = rpc.query_validators(epoch).await.into_retry_error()?;
 
-                let mut post_state_lock = state.write().await;
-                post_state_lock.update(
-                    block,
-                    total_supply_native,
-                    future_bonds,
-                    future_unbonds,
-                    validators,
-                );
-                let post_state = post_state_lock.clone();
-                drop(post_state_lock);
-
-                for check_kind in all_checks() {
-                    let check_res = match check_kind {
-                        checks::Checks::BlockHeightCheck(check) => {
-                            check.run(&pre_state, &post_state).await
-                        }
-                        checks::Checks::EpochCheck(check) => {
-                            check.run(&pre_state, &post_state).await
-                        }
-                        checks::Checks::TotalSupplyNative(check) => {
-                            check.run(&pre_state, &post_state).await
-                        }
-                        checks::Checks::TxSize(check) => check.run(&pre_state, &post_state).await,
-                    };
-                    if let Err(error) = check_res {
-                        tracing::error!("Error: {}", error.to_string());
-                        apprise
-                            .send_to_slack(error.to_string())
-                            .await
-                            .into_retry_error()?;
-                    }
+                if let Err(error) = checks.run(&pre_state, &post_state).await {
+                    tracing::error!("Error: {}", error.to_string());
+                    apprise
+                        .send_to_slack(error.to_string())
+                        .await
+                        .into_retry_error()?;
                 }
 
+                // update metrics
+                metrics.update(&pre_state, &post_state);
+
+                // post_state is the new current state
+                *current_state.write().await = post_state;
                 tracing::info!("Done block {}", block_height);
 
                 Ok(())
@@ -130,19 +152,8 @@ async fn main() -> anyhow::Result<()> {
     }
 }
 
-fn start_prometheus_exporter(registry: Registry, port: u64) -> anyhow::Result<()> {
-    let addr_raw = format!("0.0.0.0:{}", port);
-    let addr: SocketAddr = addr_raw.parse().context("can not parse listen addr")?;
-
-    let mut builder = prometheus_exporter::Builder::new(addr);
-    builder.with_registry(registry);
-    builder.start().context("can not start exporter")?;
-
-    Ok(())
-}
-
-fn retry_strategy() -> ExponentialBackoff {
+fn retry_strategy(max_delay_milis: u64) -> ExponentialBackoff {
     ExponentialBackoff::from_millis(1000)
         .factor(1)
-        .max_delay_millis(10000)
+        .max_delay_millis(max_delay_milis)
 }
