@@ -3,8 +3,8 @@ mod bonds;
 mod epoch_counter;
 mod total_supply_native_token;
 mod transactions;
-mod voting_power;
 mod transfers;
+mod voting_power;
 
 use std::{collections::HashMap, net::SocketAddr};
 
@@ -13,8 +13,8 @@ use bonds::Bonds;
 use epoch_counter::EpochCounter;
 use total_supply_native_token::TotalSupplyNativeToken;
 use transactions::Transactions;
-use voting_power::VotingPower;
 use transfers::Transfers;
+use voting_power::VotingPower;
 
 use crate::{config::AppConfig, state::State};
 use anyhow::{Context, Result};

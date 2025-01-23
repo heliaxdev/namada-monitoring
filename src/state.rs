@@ -1,8 +1,6 @@
 use anyhow::anyhow;
 
-use crate::shared::{
-    namada::{Address, Block, Height, Transfer, Validator},
-};
+use crate::shared::namada::{Address, Block, Height, Transfer, Validator};
 
 #[derive(Debug, Clone)]
 pub struct State {
@@ -118,5 +116,4 @@ impl State {
     pub fn get_all_transfers(&self) -> Vec<Transfer> {
         self.block.get_all_transfers()
     }
-
 }

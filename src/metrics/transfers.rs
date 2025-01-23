@@ -1,8 +1,8 @@
-use prometheus_exporter::prometheus::{GaugeVec, Opts, Registry};
-use anyhow::Result;
 use crate::state::State;
+use anyhow::Result;
+use prometheus_exporter::prometheus::{GaugeVec, Opts, Registry};
 
-pub struct Transfers{
+pub struct Transfers {
     /// Transfer amount by token and epoch
     pub transfer_amount: GaugeVec,
 }
@@ -12,12 +12,10 @@ impl Transfers {
         let transfer_amount_opts = Opts::new("transfer_amount", "Token transfer amount");
         let transfer_amount = GaugeVec::new(transfer_amount_opts, &["token", "epoch"])
             .expect("unable to create histogram transaction sizes");
-        Self {
-            transfer_amount
-        }
+        Self { transfer_amount }
     }
 
-    pub fn register(&self, registry: &Registry) -> Result<()>{
+    pub fn register(&self, registry: &Registry) -> Result<()> {
         registry.register(Box::new(self.transfer_amount.clone()))?;
         Ok(())
     }
@@ -34,6 +32,6 @@ impl Transfers {
     }
 
     pub fn update(&self, _pre_state: &State, post_state: &State) {
-        self.reset(post_state);        
+        self.reset(post_state);
     }
 }

@@ -93,12 +93,8 @@ impl InnerKind {
     pub fn from(tx_code_name: &str, data: &[u8]) -> Self {
         let default = |_| InnerKind::Unknown(tx_code_name.into(), data.to_vec());
         match tx_code_name {
-            "tx_transfer" => {
-                NamadaTransfer::try_from_slice(data).map_or_else(
-                    default,
-                    |data| InnerKind::Transfer(data),
-                )
-            }
+            "tx_transfer" => NamadaTransfer::try_from_slice(data)
+                .map_or_else(default, |data| InnerKind::Transfer(data)),
             "tx_bond" => {
                 Bond::try_from_slice(data).map_or_else(default, |bond| InnerKind::Bond(bond))
             }
@@ -366,7 +362,8 @@ impl Block {
                     InnerKind::Transfer(transfer) => {
                         let mut groups: BTreeMap<String, Vec<u64>> = BTreeMap::new();
                         for (a, b) in &transfer.targets {
-                            groups.entry(a.token.to_string())
+                            groups
+                                .entry(a.token.to_string())
                                 .or_default()
                                 .push(b.amount().raw_amount().as_u64());
                         }
@@ -387,7 +384,8 @@ impl Block {
                             if let Some(transfer) = &msg_transfer.transfer {
                                 let mut groups: BTreeMap<String, Vec<u64>> = BTreeMap::new();
                                 for (a, b) in &transfer.targets {
-                                    groups.entry(a.token.to_string())
+                                    groups
+                                        .entry(a.token.to_string())
                                         .or_default()
                                         .push(b.amount().raw_amount().as_u64());
                                 }
