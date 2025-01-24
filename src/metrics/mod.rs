@@ -5,6 +5,7 @@ mod total_supply_native_token;
 mod transactions;
 mod transfers;
 mod voting_power;
+mod block_time;
 
 use std::{collections::HashMap, net::SocketAddr};
 
@@ -15,6 +16,7 @@ use total_supply_native_token::TotalSupplyNativeToken;
 use transactions::Transactions;
 use transfers::Transfers;
 use voting_power::VotingPower;
+use block_time::BlockTime;
 
 use crate::{config::AppConfig, state::State};
 use anyhow::{Context, Result};
@@ -41,6 +43,8 @@ pub enum Metrics {
     Bounds(Bonds),
     /// Total transfers by epoch and token
     Transfers(Transfers),
+    /// The time spent processing block
+    BlockTime(BlockTime),
 }
 
 // FIXME this could be a trait
@@ -54,6 +58,7 @@ impl Metrics {
             Metrics::VotingPower(counter) => counter.reset(state),
             Metrics::Bounds(counter) => counter.reset(state),
             Metrics::Transfers(counter) => counter.reset(state),
+            Metrics::BlockTime(counter) => counter.reset(state),
         }
     }
 
@@ -66,6 +71,7 @@ impl Metrics {
             Metrics::VotingPower(counter) => counter.register(registry),
             Metrics::Bounds(counter) => counter.register(registry),
             Metrics::Transfers(counter) => counter.register(registry),
+            Metrics::BlockTime(counter) => counter.register(registry),
         }
     }
 
@@ -78,6 +84,7 @@ impl Metrics {
             Metrics::VotingPower(counter) => counter.update(pre_state, post_state),
             Metrics::Bounds(counter) => counter.update(pre_state, post_state),
             Metrics::Transfers(counter) => counter.update(pre_state, post_state),
+            Metrics::BlockTime(counter) => counter.update(pre_state, post_state),
         }
     }
 }
