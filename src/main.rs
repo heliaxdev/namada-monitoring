@@ -15,7 +15,7 @@ use checks::CheckCollection;
 use clap::Parser;
 use config::AppConfig;
 use error::AsRetryError;
-use metrics::MetricsCollection;
+use metrics::MetricsExporter;
 use rpc::Rpc;
 use shared::checksums::Checksums;
 use state::State;
@@ -110,10 +110,10 @@ async fn main() -> anyhow::Result<()> {
     };
 
     let checks = CheckCollection::new(&config);
-    let metrics = MetricsCollection::new(&config);
+    let metrics = MetricsExporter::default_metrics(&config);
     let state = get_state_from_rpc(&rpc, initial_block_height).await?;
-    metrics.reset(&state);
-    metrics.start_exporter(config.prometheus_port)?;
+    // metrics.reset(&state);
+    metrics.start_exporter()?;
 
     let current_state = Arc::new(RwLock::new(state));
     loop {

@@ -94,9 +94,9 @@ impl InnerKind {
         let default = |_| InnerKind::Unknown(tx_code_name.into(), data.to_vec());
         match tx_code_name {
             "tx_transfer" => NamadaTransfer::try_from_slice(data)
-                .map_or_else(default, |data| InnerKind::Transfer(data)),
+                .map_or_else(default, InnerKind::Transfer),
             "tx_bond" => {
-                Bond::try_from_slice(data).map_or_else(default, |bond| InnerKind::Bond(bond))
+                Bond::try_from_slice(data).map_or_else(default, InnerKind::Bond)
             }
             "tx_redelegate" => Redelegation::try_from_slice(data)
                 .map_or_else(default, |redelegation| {
@@ -105,7 +105,7 @@ impl InnerKind {
             "tx_unbond" => Unbond::try_from_slice(data)
                 .map_or_else(default, |unbond| InnerKind::Unbond(Unbond::from(unbond))),
             "tx_withdraw" => Withdraw::try_from_slice(data)
-                .map_or_else(default, |withdraw| InnerKind::Withdraw(withdraw)),
+                .map_or_else(default, InnerKind::Withdraw),
             "tx_claim_rewards" => ClaimRewards::try_from_slice(data)
                 .map_or_else(default, |claim_rewards| {
                     InnerKind::ClaimRewards(claim_rewards)
@@ -127,14 +127,14 @@ impl InnerKind {
                     InnerKind::CommissionChange(commission_change)
                 }),
             "tx_reveal_pk" => {
-                PublicKey::try_from_slice(data).map_or_else(default, |pk| InnerKind::RevealPk(pk))
+                PublicKey::try_from_slice(data).map_or_else(default, InnerKind::RevealPk)
             }
             "tx_deactivate_validator" => Address::try_from_slice(data)
-                .map_or_else(default, |address| InnerKind::DeactivateValidator(address)),
+                .map_or_else(default, InnerKind::DeactivateValidator),
             "tx_reactivate_validator" => Address::try_from_slice(data)
-                .map_or_else(default, |address| InnerKind::ReactivateValidator(address)),
+                .map_or_else(default, InnerKind::ReactivateValidator),
             "tx_unjail_validator" => Address::try_from_slice(data)
-                .map_or_else(default, |address| InnerKind::UnjailValidator(address)),
+                .map_or_else(default, InnerKind::UnjailValidator),
             "tx_become_validator" => BecomeValidator::try_from_slice(data)
                 .map_or_else(default, |become_validator| {
                     InnerKind::BecomeValidator(become_validator)
