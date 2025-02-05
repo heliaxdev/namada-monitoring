@@ -55,7 +55,10 @@ impl Rpc {
                 chain_id = Some(current_chain_id);
             }
         }
-        Ok(chain_id.unwrap().to_string())
+        match chain_id {
+            Some(chain_id) => Ok(chain_id.to_string()),
+            None => Err(anyhow::anyhow!("No chain IDs found")),
+        }
     }
 
     pub async fn query_tx_code_hash(

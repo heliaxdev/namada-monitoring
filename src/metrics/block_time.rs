@@ -1,6 +1,5 @@
 use crate::state::State;
 use anyhow::Result;
-use prometheus_exporter::prometheus::core::{AtomicU64, GenericCounter};
 use prometheus_exporter::prometheus::{Histogram, HistogramOpts, Registry};
 
 pub struct BlockTime {

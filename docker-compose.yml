@@ -15,6 +15,6 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
-    command: --rpc http://74.50.93.254:26657
+    command: --rpc http://74.50.93.254:26657 #  housefire-alpaca.cc0d3e0c033be
     ports:
       - 9184:9184
