@@ -20,6 +20,12 @@ use crate::{config::AppConfig, state::State};
 use anyhow::{Context, Result};
 use prometheus_exporter::prometheus::Registry;
 
+pub trait MetricTrait {
+    fn register(&self, registry: &Registry) -> Result<()>;
+    fn reset(&self, state: &State);
+    fn update(&self, pre_state: &State, post_state: &State);
+}
+
 pub enum Metrics {
     /// The latest block height recorded
     BlockHeightCounter(BlockHeightCounter),
@@ -76,13 +82,16 @@ impl Metrics {
     }
 }
 
-pub struct MetricsCollection {
-    metrics: Vec<Metrics>,
+pub struct MetricsExporter {
     registry: Registry,
+    metrics: Vec<Box<dyn MetricTrait>>,
+    port: u64,
 }
 
-impl MetricsCollection {
-    pub fn new(config: &AppConfig) -> Self {
+impl MetricsExporter {
+    pub fn new(config: &AppConfig, metrics: Vec<Box<dyn MetricTrait>>) -> Self {
+        let port = config.prometheus_port;
+
         let registry = Registry::new_custom(
             Some("namada".to_string()),
             Some(HashMap::from_iter([(
@@ -92,24 +101,34 @@ impl MetricsCollection {
         )
         .expect("Failed to create registry");
 
-        let metrics = vec![
-            Metrics::BlockHeightCounter(BlockHeightCounter::default()),
-            Metrics::EpochCounter(EpochCounter::default()),
-            Metrics::TotalNativeTokenSupply(TotalSupplyNativeToken::default()),
-            Metrics::Transactions(Transactions::default()),
-            Metrics::VotingPower(VotingPower::default()),
-            Metrics::Bounds(Bonds::default()),
-            Metrics::Transfers(Transfers::default()),
-        ];
         for metric in &metrics {
             metric
                 .register(&registry)
                 .expect("Failed to register metric");
         }
-        Self { metrics, registry }
+        Self {
+            port,
+            metrics,
+            registry,
+        }
     }
-    pub fn start_exporter(&self, port: u64) -> anyhow::Result<()> {
-        let addr_raw = format!("0.0.0.0:{}", port);
+
+    pub fn default_metrics(config: &AppConfig) -> Self {
+        let metrics = vec![
+            Box::new(BlockHeightCounter::default()) as Box<dyn MetricTrait>,
+            Box::new(Bonds::default()) as Box<dyn MetricTrait>,
+            Box::new(EpochCounter::default()) as Box<dyn MetricTrait>,
+            Box::new(TotalSupplyNativeToken::default()) as Box<dyn MetricTrait>,
+            Box::new(Transactions::default()) as Box<dyn MetricTrait>,
+            Box::new(Transfers::default()) as Box<dyn MetricTrait>,
+            Box::new(VotingPower::default()) as Box<dyn MetricTrait>,
+        ];
+
+        Self::new(config, metrics)
+    }
+
+    pub fn start_exporter(&self) -> anyhow::Result<()> {
+        let addr_raw = format!("0.0.0.0:{}", self.port);
         let addr: SocketAddr = addr_raw.parse().context("can not parse listen addr")?;
 
         let mut builder = prometheus_exporter::Builder::new(addr);
