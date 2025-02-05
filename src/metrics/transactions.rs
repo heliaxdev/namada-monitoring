@@ -5,11 +5,42 @@ use prometheus_exporter::prometheus::{
     Histogram, HistogramOpts, IntCounterVec, Opts, Registry,
 };
 
+use super::MetricTrait;
+
 pub struct Transactions {
     /// inner transactions count in the batch histogram
     transaction_batch_size: Histogram,
     /// inner transaction kind counter by epoch
     transaction_kind: GenericCounterVec<AtomicU64>,
+}
+
+impl MetricTrait for Transactions {
+    fn register(&self, registry: &Registry) -> Result<()> {
+        registry.register(Box::new(self.transaction_batch_size.clone()))?;
+        registry.register(Box::new(self.transaction_kind.clone()))?;
+        Ok(())
+    }
+
+    fn reset(&self, _state: &State) {}
+
+    fn update(&self, _pre_state: &State, post_state: &State) {
+        // update transaction size metrics
+        for tx in &post_state.get_last_block().transactions {
+            self.transaction_batch_size.observe(tx.inners.len() as f64);
+            //self.transaction_inner_size.observe(tx.inners.len() as f64);
+            for inner in &tx.inners {
+                let inner_kind = inner.kind.to_string();
+                let failed = !inner.was_applied;
+                self.transaction_kind
+                    .with_label_values(&[
+                        &inner_kind,
+                        &post_state.get_epoch().to_string(),
+                        &failed.to_string(),
+                    ])
+                    .inc();
+            }
+        }
+    }
 }
 
 impl Transactions {
@@ -25,38 +56,12 @@ impl Transactions {
         let transaction_kind_opts =
             Opts::new("transaction_kind", "Transaction kind count per epoch");
         let transaction_kind =
-            IntCounterVec::new(transaction_kind_opts, &["kind", "epoch" /* , "height"*/])
+            IntCounterVec::new(transaction_kind_opts, &["kind", "epoch", "failed"])
                 .expect("unable to create int counter for transaction kinds");
 
         Self {
             transaction_batch_size,
             transaction_kind,
-        }
-    }
-
-    pub fn register(&self, registry: &Registry) -> Result<()> {
-        registry.register(Box::new(self.transaction_batch_size.clone()))?;
-        registry.register(Box::new(self.transaction_kind.clone()))?;
-        Ok(())
-    }
-
-    pub fn reset(&self, _state: &State) {}
-
-    pub fn update(&self, _pre_state: &State, post_state: &State) {
-        // update transaction size metrics
-        for tx in &post_state.get_last_block().transactions {
-            self.transaction_batch_size.observe(tx.inners.len() as f64);
-            //self.transaction_inner_size.observe(tx.inners.len() as f64);
-            for inner in &tx.inners {
-                let inner_kind = inner.kind.to_string();
-                self.transaction_kind
-                    .with_label_values(&[
-                        &inner_kind,
-                        &post_state.get_epoch().to_string(),
-                        // &post_state.get_block().height.to_string(),
-                    ])
-                    .inc();
-            }
         }
     }
 }
