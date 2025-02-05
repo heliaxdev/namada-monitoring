@@ -1,5 +1,3 @@
-pub mod apprise;
-pub mod checks;
 pub mod config;
 pub mod error;
 pub mod log;
@@ -8,10 +6,6 @@ pub mod rpc;
 pub mod shared;
 pub mod state;
 
-use std::{sync::Arc, u64};
-
-use apprise::AppRise;
-use checks::CheckCollection;
 use clap::Parser;
 use config::AppConfig;
 use error::AsRetryError;
@@ -19,6 +13,7 @@ use metrics::MetricsExporter;
 use rpc::Rpc;
 use shared::checksums::Checksums;
 use state::State;
+use std::{sync::Arc, u64};
 use tokio::sync::RwLock;
 use tokio_retry2::{strategy::ExponentialBackoff, Retry};
 
@@ -84,12 +79,6 @@ async fn main() -> anyhow::Result<()> {
     let mut config = AppConfig::parse();
     config.log.init();
 
-    let apprise = AppRise::new(
-        config.apprise_url.clone(),
-        config.slack_token.clone(),
-        config.slack_channel.clone(),
-    );
-
     let retry_strategy = retry_strategy(config.sleep_for);
     let rpc = Rpc::new(config.cometbft_urls.clone());
     let chain_id = rpc.get_chain_id().await?;
@@ -109,7 +98,6 @@ async fn main() -> anyhow::Result<()> {
         height => height,
     };
 
-    let checks = CheckCollection::new(&config);
     let metrics = MetricsExporter::default_metrics(&config);
     let state = get_state_from_rpc(&rpc, initial_block_height).await?;
     // metrics.reset(&state);
@@ -128,14 +116,6 @@ async fn main() -> anyhow::Result<()> {
                 let post_state = get_state_from_rpc(&rpc, block_height)
                     .await
                     .into_retry_error()?;
-
-                if let Err(error) = checks.run(&pre_state, &post_state).await {
-                    tracing::error!("Error: {}", error.to_string());
-                    apprise
-                        .send_to_slack(error.to_string())
-                        .await
-                        .into_retry_error()?;
-                }
 
                 // update metrics
                 metrics.update(&pre_state, &post_state);

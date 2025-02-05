@@ -98,6 +98,7 @@ impl InnerKind {
             "tx_bond" => {
                 Bond::try_from_slice(data).map_or_else(default, InnerKind::Bond)
             }
+            "tx_bond" => Bond::try_from_slice(data).map_or_else(default, InnerKind::Bond),
             "tx_redelegate" => Redelegation::try_from_slice(data)
                 .map_or_else(default, |redelegation| {
                     InnerKind::Redelegation(redelegation)
