@@ -1,7 +1,8 @@
 use crate::state::State;
 use anyhow::Result;
-use prometheus_exporter::prometheus::core::{AtomicU64, GenericCounter};
 use prometheus_exporter::prometheus::{Histogram, HistogramOpts, Registry};
+
+use super::MetricTrait;
 
 pub struct BlockTime {
     /// The time spent processing block 
@@ -22,16 +23,18 @@ impl BlockTime {
             block_time
         }
     }
+}
 
-    pub fn register(&self, registry: &Registry) -> Result<()> {
+impl MetricTrait for BlockTime {
+    fn register(&self, registry: &Registry) -> Result<()> {
         registry.register(Box::new(self.block_time.clone()))?;
         Ok(())
     }
 
-    pub fn reset(&self, _state: &State) {
+    fn reset(&self, _state: &State) {
     }
 
-    pub fn update(&self, pre_state: &State, post_state: &State) {
+    fn update(&self, pre_state: &State, post_state: &State) {
         self.block_time.observe((post_state.get_block().timestamp - pre_state.get_block().timestamp) as f64);
     }
 }
