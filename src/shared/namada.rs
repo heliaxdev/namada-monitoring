@@ -95,9 +95,6 @@ impl InnerKind {
         match tx_code_name {
             "tx_transfer" => NamadaTransfer::try_from_slice(data)
                 .map_or_else(default, InnerKind::Transfer),
-            "tx_bond" => {
-                Bond::try_from_slice(data).map_or_else(default, InnerKind::Bond)
-            }
             "tx_bond" => Bond::try_from_slice(data).map_or_else(default, InnerKind::Bond),
             "tx_redelegate" => Redelegation::try_from_slice(data)
                 .map_or_else(default, |redelegation| {
