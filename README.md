@@ -1,3 +1,3 @@
 # Namada Monitoring
 
-- `cargo run -- --cometbft-urls <vector of rpc urls>`
+- `cargo run -- --rpc <vector of rpc urls>`

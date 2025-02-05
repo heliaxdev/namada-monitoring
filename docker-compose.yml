@@ -1,11 +1,20 @@
+
 services:
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - "./prometheus.yml:/etc/prometheus/prometheus.yml"
+      - "./namada-alerts.yml:/etc/prometheus/namada-alerts.yml"
+    ports:
+      - 9090:9090
+    restart: unless-stopped
+
   monitoring:
     image: namada/monitoring
     build:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-
-  
+    command: --rpc http://74.50.93.254:26657
+    ports:
+      - 9184:9184

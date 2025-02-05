@@ -5,7 +5,7 @@ use crate::log::LogConfig;
 #[derive(clap::Parser)]
 pub struct AppConfig {
     #[clap(short, long, value_parser, num_args = 1.., value_delimiter = ',')]
-    pub cometbft_urls: Vec<String>,
+    pub rpc: Vec<String>,
 
     #[clap(long, env)]
     pub chain_id: Option<String>,
