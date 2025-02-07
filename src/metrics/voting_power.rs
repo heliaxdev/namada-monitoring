@@ -34,8 +34,8 @@ impl MetricTrait for VotingPower {
     }
 }
 
-impl VotingPower {
-    pub fn default() -> Self {
+impl Default for VotingPower {
+    fn default() -> Self {
         let one_third_threshold = Gauge::new(
             "one_third_threshold",
             "The number of validators to reach 1/3 of the voting power",
