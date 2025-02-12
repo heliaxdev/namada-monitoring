@@ -5,6 +5,7 @@ mod total_supply_native_token;
 mod transactions;
 mod transfers;
 mod voting_power;
+mod block_time;
 
 use std::{collections::HashMap, net::SocketAddr};
 
@@ -15,6 +16,7 @@ use total_supply_native_token::TotalSupplyNativeToken;
 use transactions::Transactions;
 use transfers::Transfers;
 use voting_power::VotingPower;
+use block_time::BlockTime;
 
 use crate::{config::AppConfig, state::State};
 use anyhow::{Context, Result};

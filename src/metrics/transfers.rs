@@ -34,7 +34,7 @@ impl Default for Transfers {
     fn default() -> Self {
         let transfer_amount_opts = Opts::new("transfer_amount", "Token transfer amount");
         let transfer_amount = GaugeVec::new(transfer_amount_opts, &["token", "epoch"])
-            .expect("unable to create histogram transaction sizes");
+            .expect("unable to create transaction transfer amount");
         Self { transfer_amount }
     }
 }
