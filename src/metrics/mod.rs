@@ -28,67 +28,6 @@ pub trait MetricTrait {
     fn update(&self, pre_state: &State, post_state: &State);
 }
 
-pub enum Metrics {
-    /// The latest block height recorded
-    BlockHeightCounter(BlockHeightCounter),
-    /// The latest epoch recorded
-    EpochCounter(EpochCounter),
-    /// The latest total supply native token recorded
-    TotalNativeTokenSupply(TotalSupplyNativeToken),
-    /// Various transaction metrics
-    Transactions(Transactions),
-    /// The latest voting power recorded in thirds
-    VotingPower(VotingPower),
-    /// The latest bounds/unbounds count
-    Bounds(Bonds),
-    /// Total transfers by epoch and token
-    Transfers(Transfers),
-    /// The time spent processing block
-    BlockTime(BlockTime),
-}
-
-// FIXME this could be a trait
-impl Metrics {
-    pub fn reset(&self, state: &State) {
-        match self {
-            Metrics::BlockHeightCounter(counter) => counter.reset(state),
-            Metrics::EpochCounter(counter) => counter.reset(state),
-            Metrics::TotalNativeTokenSupply(counter) => counter.reset(state),
-            Metrics::Transactions(counter) => counter.reset(state),
-            Metrics::VotingPower(counter) => counter.reset(state),
-            Metrics::Bounds(counter) => counter.reset(state),
-            Metrics::Transfers(counter) => counter.reset(state),
-            Metrics::BlockTime(counter) => counter.reset(state),
-        }
-    }
-
-    pub fn register(&self, registry: &Registry) -> Result<()> {
-        match self {
-            Metrics::BlockHeightCounter(counter) => counter.register(registry),
-            Metrics::EpochCounter(counter) => counter.register(registry),
-            Metrics::TotalNativeTokenSupply(counter) => counter.register(registry),
-            Metrics::Transactions(counter) => counter.register(registry),
-            Metrics::VotingPower(counter) => counter.register(registry),
-            Metrics::Bounds(counter) => counter.register(registry),
-            Metrics::Transfers(counter) => counter.register(registry),
-            Metrics::BlockTime(counter) => counter.register(registry),
-        }
-    }
-
-    pub fn update(&self, pre_state: &State, post_state: &State) {
-        match self {
-            Metrics::BlockHeightCounter(counter) => counter.update(pre_state, post_state),
-            Metrics::EpochCounter(counter) => counter.update(pre_state, post_state),
-            Metrics::TotalNativeTokenSupply(counter) => counter.update(pre_state, post_state),
-            Metrics::Transactions(counter) => counter.update(pre_state, post_state),
-            Metrics::VotingPower(counter) => counter.update(pre_state, post_state),
-            Metrics::Bounds(counter) => counter.update(pre_state, post_state),
-            Metrics::Transfers(counter) => counter.update(pre_state, post_state),
-            Metrics::BlockTime(counter) => counter.update(pre_state, post_state),
-        }
-    }
-}
-
 pub struct MetricsExporter {
     registry: Registry,
     metrics: Vec<Box<dyn MetricTrait>>,

@@ -11,15 +11,6 @@ pub struct TotalSupplyNativeToken {
 }
 
 impl MetricTrait for TotalSupplyNativeToken {
-    // fn default() -> Self {
-    //     Self {
-    //         total_supply_native_token: GenericCounter::<AtomicU64>::new(
-    //             "total_supply_native_token",
-    //             "the latest total supply native token recorded",
-    //         )
-    //         .expect("unable to create counter total supply"),
-    //     }
-    // }
 
     fn register(&self, registry: &Registry) -> Result<()> {
         registry.register(Box::new(self.total_supply_native_token.clone()))?;
@@ -39,8 +30,8 @@ impl MetricTrait for TotalSupplyNativeToken {
     }
 }
 
-impl TotalSupplyNativeToken {
-    pub fn default() -> Self {
+impl Default for TotalSupplyNativeToken {
+    fn default() -> Self {
         Self {
             total_supply_native_token: GenericCounter::<AtomicU64>::new(
                 "total_supply_native_token",
