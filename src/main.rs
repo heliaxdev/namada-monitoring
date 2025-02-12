@@ -80,7 +80,7 @@ async fn main() -> anyhow::Result<()> {
     config.log.init();
 
     let retry_strategy = retry_strategy(config.sleep_for);
-    let rpc = Rpc::new(config.cometbft_urls.clone());
+    let rpc = Rpc::new(config.rpc.clone());
     let chain_id = rpc.get_chain_id().await?;
     match config.chain_id.as_ref() {
         Some(expected_chain_id) if &chain_id != expected_chain_id => {
