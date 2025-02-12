@@ -11,7 +11,6 @@ pub struct TotalSupplyNativeToken {
 }
 
 impl MetricTrait for TotalSupplyNativeToken {
-
     fn register(&self, registry: &Registry) -> Result<()> {
         registry.register(Box::new(self.total_supply_native_token.clone()))?;
         Ok(())
