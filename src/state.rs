@@ -1,4 +1,5 @@
 use anyhow::anyhow;
+use tendermint_rpc::endpoint::net_info::PeerInfo;
 
 use crate::shared::namada::{Address, Block, Height, Transfer, Validator};
 
@@ -12,6 +13,7 @@ pub struct State {
     validators: Vec<Validator>,
     future_bonds: u64,
     future_unbonds: u64,
+    peers: Vec<PeerInfo>,
 }
 
 impl State {
@@ -24,6 +26,7 @@ impl State {
         validators: Vec<Validator>,
         future_bonds: u64,
         future_unbonds: u64,
+        peers: Vec<PeerInfo>,
     ) -> Self {
         Self {
             //checksums,
@@ -34,6 +37,7 @@ impl State {
             validators,
             future_bonds,
             future_unbonds,
+            peers,
         }
     }
 
@@ -51,6 +55,10 @@ impl State {
 
     pub fn get_last_block(&self) -> &Block {
         &self.block
+    }
+
+    pub fn get_all_peers(&self) -> Vec<PeerInfo> {
+        self.peers.clone()
     }
 
     pub fn get_total_supply(&self, token: &Address) -> Option<u64> {

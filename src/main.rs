@@ -61,9 +61,8 @@ async fn get_state_from_rpc(rpc: &Rpc, height: u64) -> anyhow::Result<State> {
         .await
         .into_retry_error()?;
     let validators = rpc.query_validators(epoch).await.into_retry_error()?;
-
+    let peers = rpc.query_peers().await.into_retry_error()?;
     Ok(State::new(
-        //checksums,
         block,
         native_token,
         max_block_time_estimate,
@@ -71,6 +70,7 @@ async fn get_state_from_rpc(rpc: &Rpc, height: u64) -> anyhow::Result<State> {
         validators,
         future_bonds,
         future_unbonds,
+        peers
     ))
 }
 

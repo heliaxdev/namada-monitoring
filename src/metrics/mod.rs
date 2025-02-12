@@ -6,6 +6,7 @@ mod transactions;
 mod transfers;
 mod voting_power;
 mod block_time;
+mod peers;
 
 use std::{collections::HashMap, net::SocketAddr};
 
@@ -17,6 +18,7 @@ use transactions::Transactions;
 use transfers::Transfers;
 use voting_power::VotingPower;
 use block_time::BlockTime;
+use peers::Peers;
 
 use crate::{config::AppConfig, state::State};
 use anyhow::{Context, Result};
@@ -68,6 +70,8 @@ impl MetricsExporter {
             Box::new(Transactions::default()) as Box<dyn MetricTrait>,
             Box::new(Transfers::default()) as Box<dyn MetricTrait>,
             Box::new(VotingPower::default()) as Box<dyn MetricTrait>,
+            Box::new(BlockTime::default()) as Box<dyn MetricTrait>,
+            Box::new(Peers::default()) as Box<dyn MetricTrait>,
         ];
 
         Self::new(config, metrics)
