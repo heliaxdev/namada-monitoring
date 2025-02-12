@@ -44,6 +44,7 @@ pub struct Wrapper {
     pub status: TransactionExitStatus,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug)]
 pub enum InnerKind {
     Transfer(NamadaTransfer),
