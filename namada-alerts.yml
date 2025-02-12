@@ -55,3 +55,29 @@ groups:
           summary: "No transaction batches processed"
           description: "No transactions have been batched for the last 10 minutes, which might indicate network inactivity."
 
+       - alert: NamadaPeerCountLow
+        expr: count(namada_peers) < 10
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Namada peer count is critically low!"
+          description: "The number of active Namada peers has dropped below 10 for more than 5 minutes. This may indicate network instability or a partition issue."
+
+      - alert: NamadaPeerCountDrop
+        expr: (count(namada_peers) offset 5m - count(namada_peers)) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Sudden drop in Namada peer count"
+          description: "The number of active Namada peers has dropped by more than 10 in the last 5 minutes. This could be a sign of network issues or nodes going offline."
+
+      - alert: NamadaNoPeers
+        expr: count(namada_peers) == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Namada has no active peers!"
+          description: "There are currently no active peers connected to Namada. This might indicate a network outage or severe connectivity issues."

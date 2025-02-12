@@ -8,7 +8,7 @@ use namada_sdk::{
     state::{BlockHeight, Epoch as NamadaEpoch, Key},
 };
 use std::{future::Future, str::FromStr};
-use tendermint_rpc::{HttpClient, Url};
+use tendermint_rpc::{endpoint::net_info::PeerInfo, HttpClient, Url};
 
 use crate::shared::{
     checksums::Checksums,
@@ -164,6 +164,40 @@ impl Rpc {
                     })
                     .collect()
             })
+    }
+
+    // Ask http://127.0.0.1:26657/net_info for peer isnfolike:
+    // {
+    //     "id": 0,
+    //     "jsonrpc": "2.0",
+    //     "result": {
+    //         "listening": true,
+    //         "listeners": [
+    //         "Listener(@)"
+    //         ],
+    //         "n_peers": "1",
+    //         "peers": [
+    //         {
+    //             "node_id": "5576458aef205977e18fd50b274e9b5d9014525a",
+    //             "url": "tcp://5576458aef205977e18fd50b274e9b5d9014525a@95.179.155.35:26656"
+    //         }
+    //         ]
+    //     }
+    //     }
+    pub async  fn query_peers(&self) -> anyhow::Result<Vec<PeerInfo>> {
+        let futures = self
+            .clients
+            .iter()
+            .map(|client| client.net_info().boxed())
+            .collect();
+
+        let res = self.concurrent_requests(futures).await.context("Should be able to query peers");
+
+        res
+            .map(|info| {
+                info.peers
+            })
+
     }
 
     pub async fn query_native_token(&self) -> anyhow::Result<Address> {
