@@ -70,7 +70,7 @@ async fn get_state_from_rpc(rpc: &Rpc, height: u64) -> anyhow::Result<State> {
         validators,
         future_bonds,
         future_unbonds,
-        peers
+        peers,
     ))
 }
 

@@ -184,20 +184,19 @@ impl Rpc {
     //         ]
     //     }
     //     }
-    pub async  fn query_peers(&self) -> anyhow::Result<Vec<PeerInfo>> {
+    pub async fn query_peers(&self) -> anyhow::Result<Vec<PeerInfo>> {
         let futures = self
             .clients
             .iter()
             .map(|client| client.net_info().boxed())
             .collect();
 
-        let res = self.concurrent_requests(futures).await.context("Should be able to query peers");
+        let res = self
+            .concurrent_requests(futures)
+            .await
+            .context("Should be able to query peers");
 
-        res
-            .map(|info| {
-                info.peers
-            })
-
+        res.map(|info| info.peers)
     }
 
     pub async fn query_native_token(&self) -> anyhow::Result<Address> {

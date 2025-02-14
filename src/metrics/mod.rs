@@ -1,24 +1,26 @@
 mod block_height_counter;
+mod block_time;
 mod bonds;
 mod epoch_counter;
+pub mod fees;
+mod peers;
 mod total_supply_native_token;
 mod transactions;
 mod transfers;
 mod voting_power;
-mod block_time;
-mod peers;
 
 use std::{collections::HashMap, net::SocketAddr};
 
 use block_height_counter::BlockHeightCounter;
+use block_time::BlockTime;
 use bonds::Bonds;
 use epoch_counter::EpochCounter;
+use fees::Fees;
+use peers::Peers;
 use total_supply_native_token::TotalSupplyNativeToken;
 use transactions::Transactions;
 use transfers::Transfers;
 use voting_power::VotingPower;
-use block_time::BlockTime;
-use peers::Peers;
 
 use crate::{config::AppConfig, state::State};
 use anyhow::{Context, Result};
@@ -66,12 +68,13 @@ impl MetricsExporter {
             Box::new(BlockHeightCounter::default()) as Box<dyn MetricTrait>,
             Box::new(Bonds::default()) as Box<dyn MetricTrait>,
             Box::new(EpochCounter::default()) as Box<dyn MetricTrait>,
-            Box::new(TotalSupplyNativeToken::default()) as Box<dyn MetricTrait>,
+            Box::<TotalSupplyNativeToken>::default() as Box<dyn MetricTrait>,
             Box::new(Transactions::default()) as Box<dyn MetricTrait>,
-            Box::new(Transfers::default()) as Box<dyn MetricTrait>,
-            Box::new(VotingPower::default()) as Box<dyn MetricTrait>,
-            Box::new(BlockTime::default()) as Box<dyn MetricTrait>,
-            Box::new(Peers::default()) as Box<dyn MetricTrait>,
+            Box::<Transfers>::default() as Box<dyn MetricTrait>,
+            Box::<VotingPower>::default() as Box<dyn MetricTrait>,
+            Box::<BlockTime>::default() as Box<dyn MetricTrait>,
+            Box::<Peers>::default() as Box<dyn MetricTrait>,
+            Box::new(Fees::default()) as Box<dyn MetricTrait>,
         ];
 
         Self::new(config, metrics)
