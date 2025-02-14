@@ -17,6 +17,7 @@ pub struct State {
 }
 
 impl State {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         //checksums: Checksums,
         block: Block,

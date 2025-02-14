@@ -55,7 +55,7 @@ groups:
           summary: "No transaction batches processed"
           description: "No transactions have been batched for the last 10 minutes, which might indicate network inactivity."
 
-       - alert: NamadaPeerCountLow
+      - alert: NamadaPeerCountLow
         expr: count(namada_peers) < 10
         for: 5m
         labels:
