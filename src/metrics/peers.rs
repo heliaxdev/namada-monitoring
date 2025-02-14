@@ -18,7 +18,7 @@ impl MetricTrait for Peers {
     fn reset(&self, state: &State) {
         for peer in state.get_all_peers() {
             let version = peer.node_info.moniker.as_ref();
-            self.peers.with_label_values(&[version]).add(1 as f64);
+            self.peers.with_label_values(&[version]).add(1_f64);
         }
     }
 

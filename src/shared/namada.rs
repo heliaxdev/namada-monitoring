@@ -45,6 +45,7 @@ pub struct Wrapper {
 }
 
 #[derive(Clone, Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum InnerKind {
     Transfer(NamadaTransfer),
     IbcMsgTransfer(IbcMessage<NamadaTransfer>),
@@ -93,8 +94,9 @@ impl InnerKind {
     pub fn from(tx_code_name: &str, data: &[u8]) -> Self {
         let default = |_| InnerKind::Unknown(tx_code_name.into(), data.to_vec());
         match tx_code_name {
-            "tx_transfer" => NamadaTransfer::try_from_slice(data)
-                .map_or_else(default, InnerKind::Transfer),
+            "tx_transfer" => {
+                NamadaTransfer::try_from_slice(data).map_or_else(default, InnerKind::Transfer)
+            }
             "tx_bond" => Bond::try_from_slice(data).map_or_else(default, InnerKind::Bond),
             "tx_redelegate" => Redelegation::try_from_slice(data)
                 .map_or_else(default, |redelegation| {
@@ -102,8 +104,9 @@ impl InnerKind {
                 }),
             "tx_unbond" => Unbond::try_from_slice(data)
                 .map_or_else(default, |unbond| InnerKind::Unbond(Unbond::from(unbond))),
-            "tx_withdraw" => Withdraw::try_from_slice(data)
-                .map_or_else(default, InnerKind::Withdraw),
+            "tx_withdraw" => {
+                Withdraw::try_from_slice(data).map_or_else(default, InnerKind::Withdraw)
+            }
             "tx_claim_rewards" => ClaimRewards::try_from_slice(data)
                 .map_or_else(default, |claim_rewards| {
                     InnerKind::ClaimRewards(claim_rewards)
@@ -127,12 +130,15 @@ impl InnerKind {
             "tx_reveal_pk" => {
                 PublicKey::try_from_slice(data).map_or_else(default, InnerKind::RevealPk)
             }
-            "tx_deactivate_validator" => Address::try_from_slice(data)
-                .map_or_else(default, InnerKind::DeactivateValidator),
-            "tx_reactivate_validator" => Address::try_from_slice(data)
-                .map_or_else(default, InnerKind::ReactivateValidator),
-            "tx_unjail_validator" => Address::try_from_slice(data)
-                .map_or_else(default, InnerKind::UnjailValidator),
+            "tx_deactivate_validator" => {
+                Address::try_from_slice(data).map_or_else(default, InnerKind::DeactivateValidator)
+            }
+            "tx_reactivate_validator" => {
+                Address::try_from_slice(data).map_or_else(default, InnerKind::ReactivateValidator)
+            }
+            "tx_unjail_validator" => {
+                Address::try_from_slice(data).map_or_else(default, InnerKind::UnjailValidator)
+            }
             "tx_become_validator" => BecomeValidator::try_from_slice(data)
                 .map_or_else(default, |become_validator| {
                     InnerKind::BecomeValidator(become_validator)
@@ -388,27 +394,25 @@ impl Block {
                             });
                         }
                     }
-                    InnerKind::IbcMsgTransfer(ibc_message) => {
-                        if let IbcMessage::Transfer(msg_transfer) = ibc_message {
-                            if let Some(transfer) = &msg_transfer.transfer {
-                                let mut groups: BTreeMap<String, Vec<u64>> = BTreeMap::new();
-                                for (a, b) in &transfer.targets {
-                                    groups
-                                        .entry(a.token.to_string())
-                                        .or_default()
-                                        .push(b.amount().raw_amount().as_u64());
-                                }
-                                for (token, amounts) in groups {
-                                    let total: u64 = amounts.iter().sum();
-                                    transfers.push(Transfer {
-                                        height: self.height,
-                                        id: inner.id.clone(),
-                                        kind: TransferKind::Native,
-                                        token: token.clone(),
-                                        amount: total,
-                                        accepted: inner.was_applied,
-                                    });
-                                }
+                    InnerKind::IbcMsgTransfer(IbcMessage::Transfer(msg_transfer)) => {
+                        if let Some(transfer) = &msg_transfer.transfer {
+                            let mut groups: BTreeMap<String, Vec<u64>> = BTreeMap::new();
+                            for (a, b) in &transfer.targets {
+                                groups
+                                    .entry(a.token.to_string())
+                                    .or_default()
+                                    .push(b.amount().raw_amount().as_u64());
+                            }
+                            for (token, amounts) in groups {
+                                let total: u64 = amounts.iter().sum();
+                                transfers.push(Transfer {
+                                    height: self.height,
+                                    id: inner.id.clone(),
+                                    kind: TransferKind::Native,
+                                    token: token.clone(),
+                                    amount: total,
+                                    accepted: inner.was_applied,
+                                });
                             }
                         }
                     }

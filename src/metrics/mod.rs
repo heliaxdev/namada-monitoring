@@ -1,24 +1,24 @@
 mod block_height_counter;
+mod block_time;
 mod bonds;
 mod epoch_counter;
+mod peers;
 mod total_supply_native_token;
 mod transactions;
 mod transfers;
 mod voting_power;
-mod block_time;
-mod peers;
 
 use std::{collections::HashMap, net::SocketAddr};
 
 use block_height_counter::BlockHeightCounter;
+use block_time::BlockTime;
 use bonds::Bonds;
 use epoch_counter::EpochCounter;
+use peers::Peers;
 use total_supply_native_token::TotalSupplyNativeToken;
 use transactions::Transactions;
 use transfers::Transfers;
 use voting_power::VotingPower;
-use block_time::BlockTime;
-use peers::Peers;
 
 use crate::{config::AppConfig, state::State};
 use anyhow::{Context, Result};
