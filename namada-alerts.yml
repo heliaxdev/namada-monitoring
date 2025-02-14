@@ -1,83 +1,83 @@
 groups:
-  - name: namada-validator-alerts
-    rules:
-      - alert: NamadaBlockProcessingSlow
-        expr: rate(namada_block_time_sum[5m]) / rate(namada_block_time_count[5m]) > 10
-        for: 2m
-        labels:
-          severity: warning
-        annotations:
-          summary: "Namada block processing time is slow"
-          description: "The average block processing time has exceeded 10 seconds in the last 5 minutes."
+- name: namada-validator-alerts
+  rules:
+  - alert: NamadaBlockProcessingSlow
+    expr: rate(namada_block_time_sum[5m]) / rate(namada_block_time_count[5m]) > 10
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Namada block processing time is slow"
+      description: "The average block processing time has exceeded 10 seconds in the last 5 minutes."
 
-      - alert: NamadaBlockHeightStalled
-        expr: increase(namada_block_height[10m]) == 0
-        for: 5m
-        labels:
-          severity: critical
-        annotations:
-          summary: "Namada block height is not increasing"
-          description: "The validator appears to be stalled as the block height has not increased for 10 minutes."
+  - alert: NamadaBlockHeightStalled
+    expr: increase(namada_block_height[10m]) == 0
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Namada block height is not increasing"
+      description: "The validator appears to be stalled as the block height has not increased for 10 minutes."
 
-      - alert: NamadaLowValidatorParticipation
-        expr: namada_one_third_threshold == 0 or namada_two_third_threshold == 0
-        for: 5m
-        labels:
-          severity: critical
-        annotations:
-          summary: "Low validator participation detected"
-          description: "The number of validators needed for 1/3 or 2/3 consensus is at zero, which indicates a potential network failure."
+  - alert: NamadaLowValidatorParticipation
+    expr: namada_one_third_threshold == 0 or namada_two_third_threshold == 0
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Low validator participation detected"
+      description: "The number of validators needed for 1/3 or 2/3 consensus is at zero, which indicates a potential network failure."
 
-      - alert: NamadaAbnormalBonding
-        expr: rate(namada_bonds_per_epoch[10m]) > 1.5 * avg_over_time(namada_bonds_per_epoch[1h])
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: "Unusual increase in bonding activity"
-          description: "Bonding per epoch has increased significantly over the last 10 minutes compared to the previous hour."
+  - alert: NamadaAbnormalBonding
+    expr: rate(namada_bonds_per_epoch[10m]) > 1.5 * avg_over_time(namada_bonds_per_epoch[1h])
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Unusual increase in bonding activity"
+      description: "Bonding per epoch has increased significantly over the last 10 minutes compared to the previous hour."
 
-      - alert: NamadaAbnormalUnbonding
-        expr: rate(namada_unbonds_per_epoch[10m]) > 1.5 * avg_over_time(namada_unbonds_per_epoch[1h])
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: "Unusual increase in unbonding activity"
-          description: "Unbonding per epoch has increased significantly over the last 10 minutes compared to the previous hour."
+  - alert: NamadaAbnormalUnbonding
+    expr: rate(namada_unbonds_per_epoch[10m]) > 1.5 * avg_over_time(namada_unbonds_per_epoch[1h])
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Unusual increase in unbonding activity"
+      description: "Unbonding per epoch has increased significantly over the last 10 minutes compared to the previous hour."
 
-      - alert: NamadaZeroTransactionBatches
-        expr: namada_transaction_batch_size_count == 0
-        for: 10m
-        labels:
-          severity: warning
-        annotations:
-          summary: "No transaction batches processed"
-          description: "No transactions have been batched for the last 10 minutes, which might indicate network inactivity."
+  - alert: NamadaZeroTransactionBatches
+    expr: namada_transaction_batch_size_count == 0
+    for: 10m
+    labels:
+      severity: warning
+    annotations:
+      summary: "No transaction batches processed"
+      description: "No transactions have been batched for the last 10 minutes, which might indicate network inactivity."
 
-       - alert: NamadaPeerCountLow
-        expr: count(namada_peers) < 10
-        for: 5m
-        labels:
-          severity: critical
-        annotations:
-          summary: "Namada peer count is critically low!"
-          description: "The number of active Namada peers has dropped below 10 for more than 5 minutes. This may indicate network instability or a partition issue."
+  - alert: NamadaPeerCountLow
+    expr: count(namada_peers) < 10
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Namada peer count is critically low!"
+      description: "The number of active Namada peers has dropped below 10 for more than 5 minutes. This may indicate network instability or a partition issue."
 
-      - alert: NamadaPeerCountDrop
-        expr: (count(namada_peers) offset 5m - count(namada_peers)) > 10
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: "Sudden drop in Namada peer count"
-          description: "The number of active Namada peers has dropped by more than 10 in the last 5 minutes. This could be a sign of network issues or nodes going offline."
+  - alert: NamadaPeerCountDrop
+    expr: (count(namada_peers offset 5m) - count(namada_peers)) > 10
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Sudden drop in Namada peer count"
+      description: "The number of active Namada peers has dropped by more than 10 in the last 5 minutes. This could be a sign of network issues or nodes going offline."
 
-      - alert: NamadaNoPeers
-        expr: count(namada_peers) == 0
-        for: 1m
-        labels:
-          severity: critical
-        annotations:
-          summary: "Namada has no active peers!"
-          description: "There are currently no active peers connected to Namada. This might indicate a network outage or severe connectivity issues."
+  - alert: NamadaNoPeers
+    expr: count(namada_peers) == 0
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Namada has no active peers!"
+      description: "There are currently no active peers connected to Namada. This might indicate a network outage or severe connectivity issues."
