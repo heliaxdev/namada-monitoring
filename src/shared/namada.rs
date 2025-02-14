@@ -55,6 +55,7 @@ pub struct Fee {
 }
 
 #[derive(Clone, Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum InnerKind {
     Transfer(NamadaTransfer),
     IbcMsgTransfer(IbcMessage<NamadaTransfer>),
@@ -418,27 +419,25 @@ impl Block {
                             });
                         }
                     }
-                    InnerKind::IbcMsgTransfer(ibc_message) => {
-                        if let IbcMessage::Transfer(msg_transfer) = ibc_message {
-                            if let Some(transfer) = &msg_transfer.transfer {
-                                let mut groups: BTreeMap<String, Vec<u64>> = BTreeMap::new();
-                                for (a, b) in &transfer.targets {
-                                    groups
-                                        .entry(a.token.to_string())
-                                        .or_default()
-                                        .push(b.amount().raw_amount().as_u64());
-                                }
-                                for (token, amounts) in groups {
-                                    let total: u64 = amounts.iter().sum();
-                                    transfers.push(Transfer {
-                                        height: self.height,
-                                        id: inner.id.clone(),
-                                        kind: TransferKind::Native,
-                                        token: token.clone(),
-                                        amount: total,
-                                        accepted: inner.was_applied,
-                                    });
-                                }
+                    InnerKind::IbcMsgTransfer(IbcMessage::Transfer(msg_transfer)) => {
+                        if let Some(transfer) = &msg_transfer.transfer {
+                            let mut groups: BTreeMap<String, Vec<u64>> = BTreeMap::new();
+                            for (a, b) in &transfer.targets {
+                                groups
+                                    .entry(a.token.to_string())
+                                    .or_default()
+                                    .push(b.amount().raw_amount().as_u64());
+                            }
+                            for (token, amounts) in groups {
+                                let total: u64 = amounts.iter().sum();
+                                transfers.push(Transfer {
+                                    height: self.height,
+                                    id: inner.id.clone(),
+                                    kind: TransferKind::Native,
+                                    token: token.clone(),
+                                    amount: total,
+                                    accepted: inner.was_applied,
+                                });
                             }
                         }
                     }

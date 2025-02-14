@@ -2,7 +2,7 @@ mod block_height_counter;
 mod block_time;
 mod bonds;
 mod epoch_counter;
-pub mod fees;
+mod fees;
 mod peers;
 mod total_supply_native_token;
 mod transactions;

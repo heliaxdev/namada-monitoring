@@ -13,7 +13,7 @@ use metrics::MetricsExporter;
 use rpc::Rpc;
 use shared::checksums::Checksums;
 use state::State;
-use std::{sync::Arc, u64};
+use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio_retry2::{strategy::ExponentialBackoff, Retry};
 

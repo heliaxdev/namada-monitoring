@@ -1,5 +1,3 @@
-use std::u64;
-
 use crate::log::LogConfig;
 
 #[derive(clap::Parser)]
