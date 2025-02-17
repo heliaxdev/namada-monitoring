@@ -11,6 +11,7 @@ Namada Monitoring is a tool designed to track and report various metrics related
 - **Transaction Metrics**: Tracks transaction activity, including batch sizes and transaction types per epoch.
 - **Voting Power Metrics**: Tracks the number of validators required to reach 1/3 and 2/3 of the total voting power.
 - **Peer Count**: Tracks the number of active peers known to the node.
+- **Fees count**: Tracks the total fees paid per block and per token.  
 
 ## Prerequisites
 
