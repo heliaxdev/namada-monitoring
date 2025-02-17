@@ -53,3 +53,9 @@ cargo run -- --rpc <vector of rpc urls>
     ```sh
     docker run -it -p 9184:9184 --rm eca6f5e0be68 --rpc https://rpc.namada-archive.citizenweb3.com
     ```
+
+## Run in a docker compose with prometheus
+    ```sh
+    docker compose up -d
+    ```
+    Check prometheus ui here: http://localhost:9184 
