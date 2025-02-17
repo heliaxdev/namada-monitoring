@@ -21,14 +21,13 @@ impl MetricTrait for Fees {
 
     fn update(&self, _pre_state: &State, post_state: &State) {
         let block = post_state.get_last_block();
-        println!("Block height: {} tx number {} ", block.height, block.transactions.len());
         for tx in &block.transactions {
             let amount_per_gas = tx.fee.amount_per_gas_unit.parse::<f64>();
             let gas_limit = tx.fee.gas.parse::<f64>();
 
             let fee = match (amount_per_gas, gas_limit) {
                 (Ok(amount_per_gas), Ok(gas_limit)) => amount_per_gas * gas_limit,
-                _ => {println!("No fee"); continue},
+                _ => continue,
             };
 
             self.fees_counter
