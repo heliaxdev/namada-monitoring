@@ -27,7 +27,6 @@ impl MetricTrait for Transactions {
         // update transaction size metrics
         for tx in &post_state.get_last_block().transactions {
             self.transaction_batch_size.observe(tx.inners.len() as f64);
-            //self.transaction_inner_size.observe(tx.inners.len() as f64);
             for inner in &tx.inners {
                 let inner_kind = inner.kind.to_string();
                 let failed = !inner.was_applied;
@@ -43,8 +42,8 @@ impl MetricTrait for Transactions {
     }
 }
 
-impl Transactions {
-    pub fn default() -> Self {
+impl Default for Transactions {
+    fn default() -> Self {
         let transaction_batch_size_opts = HistogramOpts::new(
             "transaction_batch_size",
             "The number of inner transactions in the batch",
