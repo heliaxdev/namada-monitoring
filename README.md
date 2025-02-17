@@ -56,7 +56,7 @@ cargo run -- --rpc <vector of rpc urls>
     ```
 
 ## Run in a docker compose with prometheus
-    ```sh
-    docker compose up -d
-    ```
-    Check prometheus ui here: http://localhost:9184 
+```sh
+docker compose up -d
+```
+Then check prometheus ui here: http://localhost:9184 
