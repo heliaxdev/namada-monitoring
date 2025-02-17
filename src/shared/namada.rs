@@ -2,13 +2,14 @@ use namada_sdk::borsh::BorshDeserialize;
 use namada_sdk::governance::{InitProposalData, VoteProposalData};
 use namada_sdk::ibc::IbcMessage;
 use namada_sdk::key::common::PublicKey;
+use namada_sdk::uint::Uint;
 use std::collections::BTreeMap;
 use std::fmt::Display;
 
 use namada_sdk::token::Transfer as NamadaTransfer;
 use namada_sdk::tx::action::{Bond, ClaimRewards, Redelegation, Unbond, Withdraw};
 use namada_sdk::tx::data::pos::{BecomeValidator, CommissionChange, MetaDataChange};
-use namada_sdk::tx::data::TxResult;
+use namada_sdk::tx::data::{TxResult, TxType};
 use namada_sdk::tx::{data::compute_inner_tx_hash, either::Either, Tx};
 use std::str::FromStr;
 use tendermint_rpc::endpoint::block::Response;
@@ -39,9 +40,18 @@ pub struct Block {
 pub struct Wrapper {
     pub id: TxId,
     pub inners: Vec<Inner>,
-    pub gas_used: u64,
+    pub fee: Fee,
     pub atomic: bool,
     pub status: TransactionExitStatus,
+}
+
+#[derive(Debug, Clone)]
+pub struct Fee {
+    pub gas: String,
+    pub gas_used: u64,
+    pub amount_per_gas_unit: String,
+    pub gas_payer: String,
+    pub gas_token: String,
 }
 
 #[derive(Clone, Debug)]
@@ -298,6 +308,21 @@ impl Block {
                         .unwrap_or_default();
                     let atomic = tx.header().atomic;
 
+                    let fee = if let TxType::Wrapper(wrapper) = tx.header().tx_type {
+                        Fee {
+                            gas: Uint::from(wrapper.gas_limit).to_string(),
+                            gas_used,
+                            amount_per_gas_unit: wrapper
+                                .fee
+                                .amount_per_gas_unit
+                                .to_string_precise(),
+                            gas_payer: wrapper.fee_payer().to_string(),
+                            gas_token: wrapper.fee.token.to_string(),
+                        }
+                    } else {
+                        return None;
+                    };
+
                     let inners = tx
                         .header()
                         .batch
@@ -348,7 +373,7 @@ impl Block {
                     Some(Wrapper {
                         id: wrapper_id.to_string(),
                         inners,
-                        gas_used,
+                        fee,
                         atomic,
                         status: wrapper_tx_status,
                     })

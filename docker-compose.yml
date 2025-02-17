@@ -2,19 +2,22 @@
 services:
   prometheus:
     image: prom/prometheus
-    volumes:
-      - "./prometheus.yml:/etc/prometheus/prometheus.yml"
-      - "./namada-alerts.yml:/etc/prometheus/namada-alerts.yml"
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=30d
     ports:
       - 9090:9090
-    restart: unless-stopped
-
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./namada-alerts.yml:/etc/prometheus/namada-alerts.yml
+      
   monitoring:
     image: namada/monitoring
     build:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
-    command: --rpc http://74.50.93.254:26657 #  housefire-alpaca.cc0d3e0c033be
+    command: --rpc http://$EXTIP:$RPC_PORT  --chain-id $CHAIN_ID
     ports:
       - 9184:9184

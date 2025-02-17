@@ -12,7 +12,8 @@
 | `transfer_amount`               | Tracks the total transfer amount per token and epoch. |
 | `one_third_threshold`           | The number of validators needed to reach 1/3 voting power. |
 | `two_third_threshold`           | The number of validators needed to reach 2/3 voting power. |
-| `peers`	                      | Number of active peers known to the node, labeled by moniker |
+| `peers`	                        | Number of active peers known to the node, labeled by moniker |
+| `fees`                          | Total fees paid per block and per token                     |
 
 ## Block Height Counter (namada_block_height)
 
@@ -184,4 +185,17 @@ This metric tracks the number of active peers known to the node. It helps monito
 namada_peers{moniker="technodrome-v1.0.0",chain_id="namada.5f5de2dd1b88cba30586420"} 73
 namada_peers{moniker="technodrome-v1.0.0-dirty",chain_id="namada.5f5de2dd1b88cba30586420"} 3
 namada_peers{moniker="technodrome-v1.0.1-sec.2",chain_id="namada.5f5de2dd1b88cba30586420"} 21
+```
+
+## Fees per block (fees)
+This metric tracks the total transaction fees paid per block and per token. It helps monitor the gas costs of transactions on the network, providing insight into network congestion and transaction fee trends.
+	•	The metric is a counter, meaning it only increases over time.
+	•	Fees are labeled by the block height and the token used for gas payments.
+
+### Example
+```
+# HELP namada_fees_counter Total fees paid per block and per token
+# TYPE namada_fees_counter counter
+namada_fees_counter{height="777604",token="tnam1q9gr66cvu4hrzm0sd5kmlnjje82gs3xlfg3v6nu7",chain_id="housefire-alpaca.cc0d3e0c033be"} 0.5845009999999999
+namada_fees_counter{height="777605",token="tnam1q9gr66cvu4hrzm0sd5kmlnjje82gs3xlfg3v6nu7",chain_id="housefire-alpaca.cc0d3e0c033be"} 0.154409
 ```
