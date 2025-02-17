@@ -97,8 +97,7 @@ This set of metrics tracks transaction activity in the Namada blockchain, captur
 Measures the number of inner transactions within a batch. Provides insights into how transactions are grouped and processed. Uses predefined buckets (1, 2, 4, 8, ..., 256) 
 
 #### Usage and Interpretation
-TODO! No idea what should be normal here ???
-•	A skewed distribution in transaction_batch_size may suggest inefficient batch processing. ?
+•	A skewed distribution in transaction_batch_size may suggest inefficient batch processing.
 
 ### Example
 ```
