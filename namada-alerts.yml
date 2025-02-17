@@ -81,3 +81,21 @@ groups:
     annotations:
       summary: "Namada has no active peers!"
       description: "There are currently no active peers connected to Namada. This might indicate a network outage or severe connectivity issues."
+
+  - alert: HighTransactionFees
+    expr: sum by (height) (fees_counter) > 10
+    for: 1m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High Transaction Fees Detected"
+      description: "Total transaction fees in block {{ $labels.height }} exceeded the threshold. Current value: {{ $value }} NAM."
+
+  - alert: HighTransactionFeesAvg
+    expr: sum(fees_counter) > 2 * sum(avg_over_time(fees_counter[10m]))
+    for: 1m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Unusual Transaction Fees Detected"
+      description: "Transaction fees in block {{ $labels.height }} are unusually high (comapred with recent average). Current: {{ $value }} NAM."
