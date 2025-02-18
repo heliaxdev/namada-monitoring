@@ -1,3 +1,13 @@
+/// ## Transfer Amount (transfer_amount)
+/// This metric tracks the total amount of tokens transferred per epoch. It helps monitor token movement trends and detect unusual
+///  transfer activity.
+///
+/// ### Example
+/// ```
+/// # HELP transfer_amount Token transfer amount
+/// # TYPE transfer_amount gauge
+/// transfer_amount{token=“NAM”,epoch=“1024”} 5000
+/// ```
 use crate::state::State;
 use anyhow::Result;
 use prometheus_exporter::prometheus::{GaugeVec, Opts, Registry};

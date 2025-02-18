@@ -1,3 +1,24 @@
+/// ## Block Processing Time (block_time)
+/// This metric tracks the time spent processing a block. It helps monitor the efficiency of block execution and can
+///  highlight performance bottlenecks.
+///
+/// * The metric is a histogram, capturing block processing times in predefined buckets.
+/// * Buckets are set at [1, 2, 4, 8, 16, 32, 64, 128, 256] milliseconds.
+///
+/// ### Example
+///
+/// # HELP namada_block_time The time spent processing block
+// # TYPE namada_block_time histogram
+/// namada_block_time_bucket{chain_id="housefire-alpaca.cc0d3e0c033be",le="1"} 0
+/// namada_block_time_bucket{chain_id="housefire-alpaca.cc0d3e0c033be",le="2"} 0
+/// namada_block_time_bucket{chain_id="housefire-alpaca.cc0d3e0c033be",le="4"} 0
+/// namada_block_time_bucket{chain_id="housefire-alpaca.cc0d3e0c033be",le="8"} 5
+/// namada_block_time_bucket{chain_id="housefire-alpaca.cc0d3e0c033be",le="16"} 8
+/// namada_block_time_bucket{chain_id="housefire-alpaca.cc0d3e0c033be",le="32"} 8
+/// namada_block_time_bucket{chain_id="housefire-alpaca.cc0d3e0c033be",le="64"} 8
+/// namada_block_time_bucket{chain_id="housefire-alpaca.cc0d3e0c033be",le="128"} 8
+/// namada_block_time_bucket{chain_id="housefire-alpaca.cc0d3e0c033be",le="256"} 8
+/// namada_block_time_bucket{chain_id="housefire-alpaca.cc0d3e0c033be",le="+Inf"} 8
 use crate::state::State;
 use anyhow::Result;
 use prometheus_exporter::prometheus::{Histogram, HistogramOpts, Registry};
