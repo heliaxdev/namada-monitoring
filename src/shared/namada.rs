@@ -1,6 +1,6 @@
 use namada_sdk::borsh::BorshDeserialize;
 use namada_sdk::governance::{InitProposalData, VoteProposalData};
-use namada_sdk::ibc::IbcMessage;
+use namada_sdk::ibc::{self, IbcMessage};
 use namada_sdk::key::common::PublicKey;
 use namada_sdk::uint::Uint;
 use std::collections::BTreeMap;
@@ -153,6 +153,14 @@ impl InnerKind {
                 .map_or_else(default, |become_validator| {
                     InnerKind::BecomeValidator(become_validator)
                 }),
+
+            "tx_ibc" => {
+                if let Ok(ibc_data) = ibc::decode_message::<NamadaTransfer>(data) {
+                    InnerKind::IbcMsgTransfer(ibc_data)
+                } else {
+                    InnerKind::Unknown(tx_code_name.into(), data.to_vec())
+                }
+            }
             _ => {
                 tracing::warn!("Unknown transaction kind: {}", tx_code_name);
                 InnerKind::Unknown(tx_code_name.into(), data.to_vec())
