@@ -18,8 +18,8 @@
 
 
 ## How to add a new metric
-
-1- First add a new metric file to src/metrics/ for example new_metric.rs. Declare a struct with your metrics and implement MetricTRait & Default trait.
-2- Consider adding your metric to the default metric set at src/metrcs/mod.rs::MetricsExporter.default_metrics()
-3- Update /Readme.md and  src/metrics/README.md to contain your new metric
-4- Go use your new metric in an alert or dashboard
+ 
+1. Add a new metric file to src/metrics/, declare a struct with your metric and implement MetricTRait & Default trait.
+2. Consider adding your metric to the default metric set at src/metrcs/mod.rs::MetricsExporter.default_metrics()
+3. Update Readme.md to contain your new metric
+4. Go use your new metric in an alert or dashboard
