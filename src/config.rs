@@ -2,7 +2,7 @@ use crate::log::LogConfig;
 
 #[derive(clap::Parser)]
 pub struct AppConfig {
-    #[clap(short, long, value_parser, num_args = 1.., value_delimiter = ',', required = true)]
+    #[clap(short, env, long, value_parser, num_args = 1.., value_delimiter = ',', required = true)]
     pub rpc: Vec<String>,
 
     #[clap(long, env)]
