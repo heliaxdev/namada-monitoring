@@ -1,3 +1,13 @@
+/// ## Total Supply of Native Token Metric. total_supply_native_token
+/// This metric tracks the total supply of the native token on the Namada blockchain.
+/// * total_supply_native_token: A monotonic counter that records the latest total supply of the native token.
+///
+/// ### Example
+/// ```
+/// # HELP total_supply_native_token The latest total supply of the native token recorded  
+/// # TYPE total_supply_native_token counter  
+/// total_supply_native_token 1000000000  
+/// ```
 use crate::state::State;
 use anyhow::Result;
 use prometheus_exporter::prometheus::core::{AtomicU64, GenericCounter};

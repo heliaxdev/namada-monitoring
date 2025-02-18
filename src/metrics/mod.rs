@@ -65,16 +65,16 @@ impl MetricsExporter {
 
     pub fn default_metrics(config: &AppConfig) -> Self {
         let metrics = vec![
-            Box::new(BlockHeightCounter::default()) as Box<dyn MetricTrait>,
-            Box::new(Bonds::default()) as Box<dyn MetricTrait>,
-            Box::new(EpochCounter::default()) as Box<dyn MetricTrait>,
+            Box::<BlockHeightCounter>::default() as Box<dyn MetricTrait>,
+            Box::<Bonds>::default() as Box<dyn MetricTrait>,
+            Box::<EpochCounter>::default() as Box<dyn MetricTrait>,
             Box::<TotalSupplyNativeToken>::default() as Box<dyn MetricTrait>,
-            Box::new(Transactions::default()) as Box<dyn MetricTrait>,
+            Box::<Transactions>::default() as Box<dyn MetricTrait>,
             Box::<Transfers>::default() as Box<dyn MetricTrait>,
             Box::<VotingPower>::default() as Box<dyn MetricTrait>,
             Box::<BlockTime>::default() as Box<dyn MetricTrait>,
             Box::<Peers>::default() as Box<dyn MetricTrait>,
-            Box::new(Fees::default()) as Box<dyn MetricTrait>,
+            Box::<Fees>::default() as Box<dyn MetricTrait>,
         ];
 
         Self::new(config, metrics)

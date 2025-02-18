@@ -1,3 +1,13 @@
+/// ## Epoch Counter (epoch)
+/// This metric tracks the latest epoch recorded on a Namada blockchain, providing visibility into epoch progression and chain
+/// activity over time. A steadily increasing counter indicates normal epoch progression.
+///
+/// ### Example
+/// ```
+/// # HELP epoch The latest epoch recorded  
+/// # TYPE epoch counter  
+/// epoch 256
+/// ```
 use crate::state::State;
 use anyhow::Result;
 use prometheus_exporter::prometheus::core::{AtomicU64, GenericCounter};
@@ -27,8 +37,8 @@ impl MetricTrait for EpochCounter {
     }
 }
 
-impl EpochCounter {
-    pub fn default() -> Self {
+impl Default for EpochCounter {
+    fn default() -> Self {
         Self {
             epoch_counter: GenericCounter::<AtomicU64>::new("epoch", "the latest epoch recorded")
                 .expect("unable to create counter epoch"),
