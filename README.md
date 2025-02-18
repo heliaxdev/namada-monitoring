@@ -51,9 +51,9 @@ cargo run -- --rpc <vector of rpc urls>
 
 1. **Build docker image**
     ```sh
-    docker build -t namada-monitoring .
+    docker build -t namada/monitoring .
     ```
 2. **Run docker image**
     ```sh
-    docker run -it -p 9184:9184 --rm eca6f5e0be68 --rpc https://rpc.namada-archive.citizenweb3.com
+    docker run -it -p 9184:9184 --rm namada/monitoring --rpc https://rpc.namada-archive.citizenweb3.com
     ```
