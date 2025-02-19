@@ -118,6 +118,21 @@ impl State {
         &self.block
     }
 
+    pub fn get_signatures(&self) -> Vec<String> {
+        self.block
+            .block
+            .last_commit()
+            .clone()
+            .map(|commit| {
+                commit
+                    .signatures
+                    .iter()
+                    .filter_map(|sig| sig.validator_address().map(|addr| addr.to_string()))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
     pub fn get_epoch(&self) -> u64 {
         self.block.epoch
     }
