@@ -1,5 +1,5 @@
 /// ## Signature Counter (signatures)
-/// This metric tracks the number of validators that signed the block, providing visibility into the block 
+/// This metric tracks the number of validators that signed the block, providing visibility into the block
 /// signing activity over time.
 ///
 /// ### Example
@@ -21,7 +21,6 @@
 /// signatures_sum 0
 /// signatures_count 0
 /// ```
-
 use crate::state::State;
 use anyhow::Result;
 use prometheus_exporter::prometheus::{Histogram, HistogramOpts, Registry};
@@ -53,17 +52,25 @@ impl MetricTrait for Signatures {
         self.signatures_histogram.observe(delta as f64);
 
         let height = post_state.get_block().block.header.height;
-        self.signatures_gauge.with_label_values(&[&height.to_string()]).set(delta as f64);
+        self.signatures_gauge
+            .with_label_values(&[&height.to_string()])
+            .set(delta as f64);
     }
 }
 
 impl Default for Signatures {
     fn default() -> Self {
-        let signatures_opts = HistogramOpts::new("signatures", "Number of validators that signed the block");
-        let signatures_histogram = Histogram::with_opts(signatures_opts).expect("unable to create histogram for signatures");
+        let signatures_opts =
+            HistogramOpts::new("signatures", "Number of validators that signed the block");
+        let signatures_histogram = Histogram::with_opts(signatures_opts)
+            .expect("unable to create histogram for signatures");
 
-        let signatures_gauge_opts = Opts::new("signatures_count", "Number of validators signatures per block");
-        let signatures_gauge = GaugeVec::new(signatures_gauge_opts, &["height"]).expect("unable to create gauge for signatures count");
+        let signatures_gauge_opts = Opts::new(
+            "signatures_count",
+            "Number of validators signatures per block",
+        );
+        let signatures_gauge = GaugeVec::new(signatures_gauge_opts, &["height"])
+            .expect("unable to create gauge for signatures count");
 
         Self {
             signatures_histogram,

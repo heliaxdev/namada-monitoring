@@ -35,7 +35,7 @@ pub struct Block {
     pub epoch: Epoch,
     pub timestamp: i64,
     pub transactions: Vec<Wrapper>,
-    pub block: TendermintBlock
+    pub block: TendermintBlock,
 }
 
 #[derive(Clone, Debug)]

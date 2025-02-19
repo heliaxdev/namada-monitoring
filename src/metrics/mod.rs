@@ -4,11 +4,11 @@ mod bonds;
 mod epoch_counter;
 mod fees;
 mod peers;
+mod signatures;
 mod total_supply_native_token;
 mod transactions;
 mod transfers;
 mod voting_power;
-mod signatures;
 
 use std::{collections::HashMap, net::SocketAddr};
 
@@ -18,11 +18,11 @@ use bonds::Bonds;
 use epoch_counter::EpochCounter;
 use fees::Fees;
 use peers::Peers;
+use signatures::Signatures;
 use total_supply_native_token::TotalSupplyNativeToken;
 use transactions::Transactions;
 use transfers::Transfers;
 use voting_power::VotingPower;
-use signatures::Signatures;
 
 use crate::{config::AppConfig, state::State};
 use anyhow::{Context, Result};
