@@ -4,6 +4,7 @@ mod bonds;
 mod epoch_counter;
 mod fees;
 mod peers;
+mod signatures;
 mod total_supply_native_token;
 mod transactions;
 mod transfers;
@@ -17,6 +18,7 @@ use bonds::Bonds;
 use epoch_counter::EpochCounter;
 use fees::Fees;
 use peers::Peers;
+use signatures::Signatures;
 use total_supply_native_token::TotalSupplyNativeToken;
 use transactions::Transactions;
 use transfers::Transfers;
@@ -75,6 +77,7 @@ impl MetricsExporter {
             Box::<BlockTime>::default() as Box<dyn MetricTrait>,
             Box::<Peers>::default() as Box<dyn MetricTrait>,
             Box::<Fees>::default() as Box<dyn MetricTrait>,
+            Box::<Signatures>::default() as Box<dyn MetricTrait>,
         ];
 
         Self::new(config, metrics)

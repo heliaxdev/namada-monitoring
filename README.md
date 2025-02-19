@@ -10,6 +10,7 @@ Namada Monitoring is a tool designed to track and report various metrics related
 - **Epoch Counter**: Tracks the latest epoch recorded on the blockchain.
 - **Fees tracker**:  Total fees paid per block and per token.
 - **Peer Count**: Tracks the number of active peers known to the node.
+- **Validator Signatures counter**:  Tracks the number of validators signatures in each block
 - **Total Supply of Native Token**: Monitors the total supply of Namada's native token.
 - **Transaction Metrics**: Tracks transaction activity, including batch sizes and transaction types per epoch.
 - **Transfers amounts**: Tracks the total transfer amount per token and epoch.

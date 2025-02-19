@@ -2,6 +2,7 @@ use namada_sdk::borsh::BorshDeserialize;
 use namada_sdk::governance::{InitProposalData, VoteProposalData};
 use namada_sdk::ibc::{self, IbcMessage};
 use namada_sdk::key::common::PublicKey;
+use namada_sdk::tendermint::block::Block as TendermintBlock;
 use namada_sdk::uint::Uint;
 use std::collections::BTreeMap;
 use std::fmt::Display;
@@ -34,6 +35,7 @@ pub struct Block {
     pub epoch: Epoch,
     pub timestamp: i64,
     pub transactions: Vec<Wrapper>,
+    pub block: TendermintBlock,
 }
 
 #[derive(Clone, Debug)]
@@ -296,7 +298,9 @@ impl Block {
         checksums: &Checksums,
         epoch: Epoch,
     ) -> Self {
+        let block = response.block.clone();
         Self {
+            block,
             height: response.block.header.height.value(),
             epoch,
             timestamp: response.block.header.time.unix_timestamp(),
