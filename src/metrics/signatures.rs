@@ -48,13 +48,13 @@ impl MetricTrait for Signatures {
     }
 
     fn update(&self, _pre_state: &State, post_state: &State) {
-        let delta = post_state.get_block().block.evidence.iter().count() as u64;
-        self.signatures_histogram.observe(delta as f64);
+        let total_signatures = post_state.get_signatures().len() as u64;
+        self.signatures_histogram.observe(total_signatures as f64);
 
         let height = post_state.get_block().block.header.height;
         self.signatures_gauge
             .with_label_values(&[&height.to_string()])
-            .set(delta as f64);
+            .set(total_signatures as f64);
     }
 }
 
