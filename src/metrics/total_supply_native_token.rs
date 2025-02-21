@@ -44,7 +44,7 @@ impl Default for TotalSupplyNativeToken {
         Self {
             total_supply_native_token: GenericCounter::<AtomicU64>::new(
                 "total_supply_native_token",
-                "the latest total supply native token recorded",
+                "The latest total supply native token recorded",
             )
             .expect("unable to create counter total supply"),
         }

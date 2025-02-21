@@ -62,7 +62,7 @@ impl State {
         self.peers.clone()
     }
 
-    pub fn get_total_supply(&self, token: &Address) -> Option<u64> {
+    pub fn get_total_supply_for(&self, token: &Address) -> Option<u64> {
         if token == &self.native_token {
             Some(self.total_supply_native)
         } else {
