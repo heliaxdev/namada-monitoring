@@ -48,6 +48,13 @@ async fn get_state_from_rpc(rpc: &Rpc, height: u64) -> anyhow::Result<State> {
         .query_block(height, &checksums, epoch)
         .await
         .into_retry_error()?;
+    if block.height != height {
+        return Err(anyhow::anyhow!(
+            "Block height mismatch: expected {}, got {}",
+            height,
+            block.height
+        ));
+    }
     let max_block_time_estimate = rpc
         .query_max_block_time_estimate()
         .await
@@ -100,7 +107,7 @@ async fn main() -> anyhow::Result<()> {
 
     let metrics = MetricsExporter::default_metrics(&config);
     let state = get_state_from_rpc(&rpc, initial_block_height).await?;
-    // metrics.reset(&state);
+    metrics.reset(&state);
     metrics.start_exporter()?;
 
     let current_state = Arc::new(RwLock::new(state));
