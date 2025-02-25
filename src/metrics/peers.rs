@@ -9,9 +9,9 @@
 /// ```
 /// # HELP namada_peers Number of peers known
 /// # TYPE namada_peers gauge
-/// namada_peers{moniker="technodrome-v1.0.0",chain_id="namada.5f5de2dd1b88cba30586420"} 73
-/// namada_peers{moniker="technodrome-v1.0.0-dirty",chain_id="namada.5f5de2dd1b88cba30586420"} 3
-/// namada_peers{moniker="technodrome-v1.0.1-sec.2",chain_id="namada.5f5de2dd1b88cba30586420"} 21
+/// namada_peers{moniker="technodrome-v1.0.0"} 73
+/// namada_peers{moniker="technodrome-v1.0.0-dirty"} 3
+/// namada_peers{moniker="technodrome-v1.0.1-sec.2"} 21
 /// ```
 use crate::state::State;
 use anyhow::Result;

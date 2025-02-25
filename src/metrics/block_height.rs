@@ -1,10 +1,7 @@
-/// ## Block Height Counter (block_height)
+/// ## Block Height (block_height)
 /// This metric tracks the latest block height of the Namada blockchain. It provides a real-time view of
-///  block progression, and helps monitor chain liveness and ensure continuous block production.
-///
-/// * The metric is a monotonic counter that increments as new blocks are added to the chain.
-/// * It is updated at each block by fetching the latest block height from the blockchain state.
-///
+/// block progression, and helps monitor chain liveness and ensure continuous block production.
+/// It is updated at each block by fetching the latest block height from the blockchain state.
 ///
 /// ### Example
 /// ```
@@ -13,7 +10,7 @@
 /// namada_block_height 12960
 /// ```
 ///
-/// ##Block Height Stalled:
+/// ## Alert: Block Height Stalled:
 /// If no blocks are registered in 10 minutes, the block height has stalled. Alert the team to investigate the issue.
 /// ```
 /// increase(namada_block_height[10m]) == 0
@@ -25,32 +22,32 @@ use prometheus_exporter::prometheus::Registry;
 
 use super::MetricTrait;
 
-pub struct BlockHeightCounter {
-    block_height_counter: GenericCounter<AtomicU64>,
+pub struct BlockHeight {
+    block_height: GenericCounter<AtomicU64>,
 }
 
-impl MetricTrait for BlockHeightCounter {
+impl MetricTrait for BlockHeight {
     fn register(&self, registry: &Registry) -> Result<()> {
-        registry.register(Box::new(self.block_height_counter.clone()))?;
+        registry.register(Box::new(self.block_height.clone()))?;
         Ok(())
     }
 
     fn reset(&self, state: &State) {
-        self.block_height_counter.reset();
-        self.block_height_counter
+        self.block_height.reset();
+        self.block_height
             .inc_by(state.get_last_block().height);
     }
 
     fn update(&self, pre_state: &State, post_state: &State) {
-        self.block_height_counter
+        self.block_height
             .inc_by(post_state.get_last_block().height - pre_state.get_last_block().height);
     }
 }
 
-impl Default for BlockHeightCounter {
+impl Default for BlockHeight {
     fn default() -> Self {
         Self {
-            block_height_counter: GenericCounter::<AtomicU64>::new(
+            block_height: GenericCounter::<AtomicU64>::new(
                 "block_height",
                 "the latest block height recorded",
             )

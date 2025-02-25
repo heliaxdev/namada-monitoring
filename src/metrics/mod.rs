@@ -1,7 +1,7 @@
-mod block_height_counter;
+mod block_height;
 mod block_time;
 mod bonds;
-mod epoch_counter;
+mod epoch;
 mod fees;
 mod peers;
 mod signatures;
@@ -13,10 +13,10 @@ mod voting_power;
 
 use std::{collections::HashMap, net::SocketAddr};
 
-use block_height_counter::BlockHeightCounter;
+use block_height::BlockHeight;
 use block_time::BlockTime;
 use bonds::Bonds;
-use epoch_counter::EpochCounter;
+use epoch::Epoch;
 use fees::Fees;
 use peers::Peers;
 use signatures::Signatures;
@@ -69,9 +69,9 @@ impl MetricsExporter {
 
     pub fn default_metrics(config: &AppConfig) -> Self {
         let metrics = vec![
-            Box::<BlockHeightCounter>::default() as Box<dyn MetricTrait>,
+            Box::<BlockHeight>::default() as Box<dyn MetricTrait>,
             Box::<Bonds>::default() as Box<dyn MetricTrait>,
-            Box::<EpochCounter>::default() as Box<dyn MetricTrait>,
+            Box::<Epoch>::default() as Box<dyn MetricTrait>,
             Box::<TotalSupplyNativeToken>::default() as Box<dyn MetricTrait>,
             Box::<Transactions>::default() as Box<dyn MetricTrait>,
             Box::<Transfers>::default() as Box<dyn MetricTrait>,

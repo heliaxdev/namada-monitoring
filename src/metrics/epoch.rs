@@ -15,12 +15,12 @@ use prometheus_exporter::prometheus::Registry;
 
 use super::MetricTrait;
 
-pub struct EpochCounter {
+pub struct Epoch {
     /// The latest epoch recorded
     epoch_counter: GenericCounter<AtomicU64>,
 }
 
-impl MetricTrait for EpochCounter {
+impl MetricTrait for Epoch {
     fn register(&self, registry: &Registry) -> Result<()> {
         registry.register(Box::new(self.epoch_counter.clone()))?;
         Ok(())
@@ -37,7 +37,7 @@ impl MetricTrait for EpochCounter {
     }
 }
 
-impl Default for EpochCounter {
+impl Default for Epoch {
     fn default() -> Self {
         Self {
             epoch_counter: GenericCounter::<AtomicU64>::new("epoch", "the latest epoch recorded")
