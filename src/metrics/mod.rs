@@ -5,6 +5,7 @@ mod epoch_counter;
 mod fees;
 mod peers;
 mod signatures;
+pub mod slashes;
 mod total_supply_native_token;
 mod transactions;
 mod transfers;
@@ -19,6 +20,7 @@ use epoch_counter::EpochCounter;
 use fees::Fees;
 use peers::Peers;
 use signatures::Signatures;
+use slashes::Slashes;
 use total_supply_native_token::TotalSupplyNativeToken;
 use transactions::Transactions;
 use transfers::Transfers;
@@ -78,6 +80,7 @@ impl MetricsExporter {
             Box::<Peers>::default() as Box<dyn MetricTrait>,
             Box::<Fees>::default() as Box<dyn MetricTrait>,
             Box::<Signatures>::default() as Box<dyn MetricTrait>,
+            Box::<Slashes>::default() as Box<dyn MetricTrait>,
         ];
 
         Self::new(config, metrics)
