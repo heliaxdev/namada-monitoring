@@ -1,0 +1,120 @@
+groups:
+- name: namada-validator-alerts
+  rules:
+  - alert: NamadaBlockHeightStalled
+    expr: increase(namada_block_height[5m]) == 0
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Namada block height is not increasing"
+      description: "The validators at {{ $labels.instance }} appears to be stalled as the block height has not increased for 5 minutes. Last recorded block height: {{ value }}"
+
+  - alert: NamadaBlockProcessingSlow
+    expr: rate(namada_block_time_sum[5m]) / rate(namada_block_time_count[5m]) > 10
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Namada block processing time is slow"
+      description: "The average block processing time has exceeded 10 seconds considering the the last 5 minutes of data."
+
+  - alert: NamadaVotingPowerConcentration
+    expr: namada_one_third_threshold / (namada_one_third_threshold + namada_two_third_threshold ) > 0.6
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Low validator participation detected"
+      description: "The number of validators needed for 1/3 of the voting power if more than half the number of validators nded for 2/3 voting power."
+
+  - alert: NamadaLowValidatorParticipation
+    expr: namada_one_third_threshold < 1 or namada_two_third_threshold < 1
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Low validator participation detected"
+      description: "The number of validators needed for 1/3 or 2/3 consensus is at zero, which indicates a potential network failure."
+
+  - alert: NamadaAbnormalBonding
+    expr: rate(namada_bonds_per_epoch[10m]) > 1.5 * avg_over_time(namada_bonds_per_epoch[7d])
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Unusual increase in bonding activity"
+      description: "Bonding per epoch has increased significantly over the last 10 minutes compared to the average of last 7 days."
+
+  - alert: NamadaAbnormalUnbonding
+    expr: rate(namada_unbonds_per_epoch[10m]) > 1.5 * avg_over_time(namada_unbonds_per_epoch[7d])
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Unusual increase in unbonding activity"
+      description: "Unbonding per epoch has increased significantly over the last 10 minutes compared to the average of last 7 days."
+
+  - alert: NamadaZeroTransactionBatches
+    expr: namada_transaction_batch_size_count == 0
+    for: 10m
+    labels:
+      severity: warning
+    annotations:
+      summary: "No transaction batches processed"
+      description: "No transactions have been batched for the last 10 minutes, which might indicate network inactivity."
+
+  - alert: NamadaPeerCountLow
+    expr: count(namada_peers) < 10
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Namada peer count is critically low!"
+      description: "The number of active Namada peers has dropped below 10 for more than 5 minutes. This may indicate network instability or a partition issue."
+
+  - alert: NamadaPeerCountDrop
+    expr: (count(namada_peers offset 5m) - count(namada_peers)) > 10
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Sudden drop in Namada peer count"
+      description: "The number of active Namada peers has dropped by more than 10 in the last 5 minutes. This could be a sign of network issues or nodes going offline."
+
+  - alert: NamadaNoPeers
+    expr: count(namada_peers) == 0
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Namada has no active peers!"
+      description: "There are currently no active peers connected to Namada. This might indicate a network outage or severe connectivity issues."
+
+  - alert: HighTransactionFees
+    expr: sum by (height) (fees_counter) > 10
+    for: 1m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High Transaction Fees Detected - Threshold"
+      description: "Total transaction fees in block {{ $labels.height }} exceeded the threshold. Current value: {{ $value }} NAM."
+
+  - alert: HighTransactionFeesAvg
+    expr: sum(fees_counter) > 2 * sum(avg_over_time(fees_counter[10m]))
+    for: 1m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Unusual Transaction Fees Detected - 10m Average"
+      description: "Transaction fees in block {{ $labels.height }} are unusually high (comapred with recent 10m average). Current: {{ $value }} NAM."
+  
+  - alert: HighInnerTransactionFailureRate
+    expr: |
+      rate(namada_transaction_kind{failed="true"}[10m]) / rate(namada_transaction_kind[10m]) > 0.2
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "High failure rate of inner transactions"
+      description: "More than 20% of inner transactions have failed in the last 10 minutes during epoch {{ $labels.epoch }}."

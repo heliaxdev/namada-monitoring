@@ -1,0 +1,649 @@
+{
+    "__elements": {},
+    "__requires": [
+      {
+        "type": "panel",
+        "id": "gauge",
+        "name": "Gauge",
+        "version": ""
+      },
+      {
+        "type": "grafana",
+        "id": "grafana",
+        "name": "Grafana",
+        "version": "11.5.2"
+      },
+      {
+        "type": "datasource",
+        "id": "prometheus",
+        "name": "Prometheus",
+        "version": "1.0.0"
+      },
+      {
+        "type": "panel",
+        "id": "stat",
+        "name": "Stat",
+        "version": ""
+      }
+    ],
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": {
+            "type": "grafana",
+            "uid": "-- Grafana --"
+          },
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "type": "dashboard"
+        }
+      ]
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": null,
+    "links": [],
+    "panels": [
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "PROMUID"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "mappings": [],
+            "max": 1,
+            "min": 0,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red"
+                },
+                {
+                  "color": "#EAB839",
+                  "value": 0.1
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 0
+        },
+        "id": 10,
+        "options": {
+          "minVizHeight": 75,
+          "minVizWidth": 75,
+          "orientation": "auto",
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ],
+            "fields": "",
+            "values": true
+          },
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true,
+          "sizing": "auto"
+        },
+        "pluginVersion": "11.5.2",
+        "targets": [
+          {
+            "disableTextWrap": false,
+            "editorMode": "code",
+            "exemplar": false,
+            "expr": "namada_total_voting_power / namada_total_supply_native_token",
+            "format": "time_series",
+            "fullMetaSearch": false,
+            "includeNullMetadata": false,
+            "instant": true,
+            "legendFormat": "__auto",
+            "range": false,
+            "refId": "A",
+            "useBackend": false,
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PROMUID"
+            }
+          }
+        ],
+        "title": "Voting power",
+        "type": "gauge"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "PROMUID"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "mappings": [],
+            "max": 100,
+            "min": 0,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 10
+                },
+                {
+                  "color": "green",
+                  "value": 50
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 7,
+          "w": 9,
+          "x": 0,
+          "y": 8
+        },
+        "id": 1,
+        "options": {
+          "minVizHeight": 75,
+          "minVizWidth": 75,
+          "orientation": "auto",
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ],
+            "fields": "/^Block Height$/",
+            "values": false
+          },
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true,
+          "sizing": "auto"
+        },
+        "pluginVersion": "11.5.2",
+        "targets": [
+          {
+            "editorMode": "code",
+            "expr": "increase(namada_block_height[10m])",
+            "legendFormat": "Block Height",
+            "range": true,
+            "refId": "BlocksBy10",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PROMUID"
+            }
+          }
+        ],
+        "title": "Blocks Produced In 10 Minutes",
+        "type": "gauge"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "PROMUID"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 9
+                },
+                {
+                  "color": "red",
+                  "value": 10
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 7,
+          "w": 10,
+          "x": 9,
+          "y": 8
+        },
+        "id": 2,
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "percentChangeColorMode": "standard",
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ],
+            "fields": "",
+            "values": false
+          },
+          "showPercentChange": false,
+          "textMode": "auto",
+          "wideLayout": true
+        },
+        "pluginVersion": "11.5.2",
+        "targets": [
+          {
+            "editorMode": "code",
+            "exemplar": false,
+            "expr": "rate(namada_block_time_sum[1m]) / rate(namada_block_time_count[1m]) ",
+            "interval": "",
+            "legendFormat": "__auto",
+            "range": true,
+            "refId": "B",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PROMUID"
+            }
+          }
+        ],
+        "title": "Avg Block Processing Time(secs)",
+        "type": "stat"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "PROMUID"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red"
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 3,
+          "w": 19,
+          "x": 0,
+          "y": 15
+        },
+        "id": 5,
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "percentChangeColorMode": "standard",
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ],
+            "fields": "",
+            "values": false
+          },
+          "showPercentChange": false,
+          "textMode": "auto",
+          "wideLayout": true
+        },
+        "pluginVersion": "11.5.2",
+        "targets": [
+          {
+            "disableTextWrap": false,
+            "editorMode": "code",
+            "expr": "increase   ",
+            "fullMetaSearch": false,
+            "includeNullMetadata": true,
+            "legendFormat": "__auto",
+            "range": true,
+            "refId": "E",
+            "useBackend": false,
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PROMUID"
+            }
+          }
+        ],
+        "title": "Epoch Increase",
+        "type": "stat"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "PROMUID"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "mappings": [],
+            "max": 1,
+            "min": 0,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "#EAB839",
+                  "value": 0.9
+                },
+                {
+                  "color": "green",
+                  "value": 0.98
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 7,
+          "w": 10,
+          "x": 0,
+          "y": 18
+        },
+        "id": 3,
+        "options": {
+          "minVizHeight": 75,
+          "minVizWidth": 75,
+          "orientation": "auto",
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ],
+            "fields": "",
+            "values": false
+          },
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true,
+          "sizing": "auto"
+        },
+        "pluginVersion": "11.5.2",
+        "targets": [
+          {
+            "disableTextWrap": false,
+            "editorMode": "code",
+            "exemplar": false,
+            "expr": "namada_bonds / (namada_bonds + namada_unbonds)",
+            "fullMetaSearch": false,
+            "includeNullMetadata": true,
+            "instant": true,
+            "legendFormat": "Bonds/Unbonds",
+            "range": false,
+            "refId": "bonds",
+            "useBackend": false,
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PROMUID"
+            }
+          }
+        ],
+        "title": "Bonds/(Bond+Unbonds)",
+        "type": "gauge"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "PROMUID"
+        },
+        "description": "namada_one_third_threshold/namada_two_third_threshold",
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "mappings": [],
+            "max": 1,
+            "min": 0,
+            "thresholds": {
+              "mode": "percentage",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "#EAB839",
+                  "value": 30
+                },
+                {
+                  "color": "red",
+                  "value": 50
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 7,
+          "w": 9,
+          "x": 10,
+          "y": 18
+        },
+        "id": 9,
+        "options": {
+          "minVizHeight": 75,
+          "minVizWidth": 75,
+          "orientation": "auto",
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ],
+            "fields": "",
+            "values": false
+          },
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true,
+          "sizing": "auto"
+        },
+        "pluginVersion": "11.5.2",
+        "targets": [
+          {
+            "editorMode": "code",
+            "exemplar": false,
+            "expr": "namada_one_third_threshold/namada_two_third_threshold",
+            "instant": true,
+            "legendFormat": "__auto",
+            "range": false,
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PROMUID"
+            }
+          }
+        ],
+        "title": "Voting concentration",
+        "type": "gauge"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "PROMUID"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 80
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 5,
+          "w": 10,
+          "x": 0,
+          "y": 25
+        },
+        "id": 6,
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "percentChangeColorMode": "standard",
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ],
+            "fields": "",
+            "values": false
+          },
+          "showPercentChange": false,
+          "textMode": "auto",
+          "wideLayout": true
+        },
+        "pluginVersion": "11.5.2",
+        "targets": [
+          {
+            "editorMode": "code",
+            "expr": "sum(namada_fees) by (token)",
+            "legendFormat": "Fees - {{token}}",
+            "range": true,
+            "refId": "F",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PROMUID"
+            }
+          }
+        ],
+        "title": "Transaction Fees",
+        "type": "stat"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "PROMUID"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 5,
+          "w": 9,
+          "x": 10,
+          "y": 25
+        },
+        "id": 7,
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "percentChangeColorMode": "standard",
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ],
+            "fields": "",
+            "values": false
+          },
+          "showPercentChange": false,
+          "textMode": "auto",
+          "wideLayout": true
+        },
+        "pluginVersion": "11.5.2",
+        "targets": [
+          {
+            "editorMode": "code",
+            "expr": "namada_total_supply_native_token",
+            "legendFormat": "Total Supply",
+            "range": true,
+            "refId": "G",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PROMUID"
+            }
+          }
+        ],
+        "title": "Total Supply of Native Token",
+        "type": "stat"
+      }
+    ],
+    "refresh": "1m",
+    "schemaVersion": 40,
+    "tags": [],
+    "templating": {
+      "list": []
+    },
+    "time": {
+      "from": "now-5m",
+      "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "browser",
+    "title": "Namada Monitoring Dashboard",
+    "uid": "fedjsa6cvhwxsd",
+    "version": 11,
+    "weekStart": ""
+  }
+  

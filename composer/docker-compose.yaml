@@ -1,0 +1,35 @@
+
+services:
+  prometheus:
+    image: prom/prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=30d
+    ports:
+      - 9090:9090
+    volumes:
+      - ./provisioning/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./provisioning/prometheus/namada-alerts.yml:/etc/prometheus/namada-alerts.yml
+      
+  monitoring:
+    image: namada/monitoring
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    # See .env to change values
+    command: --rpc $RPC --chain-id $CHAIN_ID
+    ports:
+      - 9184:9184
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - 3000:3000
+    volumes:
+      - ./provisioning/grafana/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml
+      - ./provisioning/grafana/dashboards.yml:/etc/grafana/provisioning/dashboards/dashboard.yml
+      - ./provisioning/grafana/dashboard.json:/etc/grafana/provisioning/dashboards/dashboard.json
+
+    restart: always
