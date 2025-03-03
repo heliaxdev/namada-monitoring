@@ -133,6 +133,10 @@ impl State {
             .unwrap_or_default()
     }
 
+    pub fn get_slashes(&self) -> u64 {
+        self.block.block.evidence.iter().len() as u64
+    }
+
     pub fn get_epoch(&self) -> u64 {
         self.block.epoch
     }
