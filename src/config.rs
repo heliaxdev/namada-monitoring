@@ -20,6 +20,9 @@ pub struct AppConfig {
     #[clap(long, env, default_value_t = u64::MAX)]
     pub initial_block_height: u64,
 
+    #[clap(long, env, default_value_t = u64::MAX)]
+    pub last_block_height: u64,
+
     #[clap(long, env, default_value_t = 1000)]
     pub sleep_for: u64,
 

@@ -5,8 +5,10 @@ devs:
     rustup toolchain install {{ RUST_STABLE }} --no-self-update --component clippy,rustfmt
     rustup toolchain install {{ RUST_NIGTHLY }} --no-self-update --component clippy,rustfmt
 
-build:
+build target="":
     cargo build
+    if [[ "w{{target}}" == "wdocker" ]]; then docker build -t namada/monitoring . ; fi
+
 
 check:
     cargo check
@@ -25,3 +27,8 @@ clippy-fix:
 
 clean:
     cargo clean
+
+compose recipe="up":
+    cd composer && just {{recipe}}
+    #if [[ "w{{recipe}}" == "wup" ]]; then just build docker; fi
+

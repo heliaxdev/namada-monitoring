@@ -105,6 +105,8 @@ async fn main() -> anyhow::Result<()> {
         height => height,
     };
 
+    let last_block_height = config.last_block_height;
+
     let metrics = MetricsExporter::default_metrics(&config);
     let state = get_state_from_rpc(&rpc, initial_block_height).await?;
     metrics.reset(&state);
@@ -124,8 +126,10 @@ async fn main() -> anyhow::Result<()> {
                     .await
                     .into_retry_error()?;
 
-                // update metrics
-                metrics.update(&pre_state, &post_state);
+                if block_height <= last_block_height {
+                    // update metrics
+                    metrics.update(&pre_state, &post_state);
+                }
 
                 // post_state is the new current state
                 *current_state.write().await = post_state;

@@ -27,7 +27,7 @@
 /// Tracks the count of different transaction types per epoch. A high failure rate (failed = "true") should be considered abnormal.
 ///
 /// #### Labels:
-/// 	- kind: The specific type of transaction:
+///         - kind: The specific type of transaction:
 ///         - transfer: Standard token transfer.
 ///         - ibc_transfer: Cross-chain transfer via IBC.
 ///         - bond/unbond/redelegate: Staking-related actions.
@@ -36,8 +36,8 @@
 ///         - metadata_change/commission_change”: Validator updates.
 ///         - reveal_public_key: Public key revelation.
 ///         - become_validator/deactivate_validator/reactivate_validator/unjail_validator: Validator lifecycle actions.
-/// 	- epoch: The epoch in which the transaction was included.
-/// 	- failed: A boolean (true/false) indicating if the transaction failed.
+///         - epoch: The epoch in which the transaction was included.
+///         - failed: A boolean (true/false) indicating if the transaction failed.
 ///
 /// ### Example
 /// ```
