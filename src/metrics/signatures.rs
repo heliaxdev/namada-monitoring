@@ -23,58 +23,39 @@
 /// ```
 use crate::state::State;
 use anyhow::Result;
-use prometheus_exporter::prometheus::{Histogram, HistogramOpts, Registry};
+use prometheus_exporter::prometheus::{Gauge, Registry};
 
 use super::MetricTrait;
-use prometheus_exporter::prometheus::{GaugeVec, Opts};
 
 pub struct Signatures {
-    /// Histogram of the number of validators that signed the block
-    signatures_histogram: Histogram,
-    /// GaugeVec to track the number of signatures with the block height as a label
-    signatures_gauge: GaugeVec,
+    /// GaugeVec to track the number of signatures in the lastest block height
+    signatures: Gauge,
 }
 
 impl MetricTrait for Signatures {
     fn register(&self, registry: &Registry) -> Result<()> {
-        registry.register(Box::new(self.signatures_histogram.clone()))?;
-        registry.register(Box::new(self.signatures_gauge.clone()))?;
+        registry.register(Box::new(self.signatures.clone()))?;
         Ok(())
     }
 
     fn reset(&self, _state: &State) {
-        // Histograms do not have a reset method, so we do nothing here
-        self.signatures_gauge.reset();
+        self.signatures.set(0.0);
     }
 
     fn update(&self, _pre_state: &State, post_state: &State) {
         let total_signatures = post_state.get_signatures().len() as u64;
-        self.signatures_histogram.observe(total_signatures as f64);
-
-        let height = post_state.get_block().block.header.height;
-        self.signatures_gauge
-            .with_label_values(&[&height.to_string()])
-            .set(total_signatures as f64);
+        self.signatures.set(total_signatures as f64);
     }
 }
 
 impl Default for Signatures {
     fn default() -> Self {
-        let signatures_opts =
-            HistogramOpts::new("signatures", "Number of validators that signed the block");
-        let signatures_histogram = Histogram::with_opts(signatures_opts)
-            .expect("unable to create histogram for signatures");
-
-        let signatures_gauge_opts = Opts::new(
-            "signatures_count",
-            "Number of validators signatures per block",
-        );
-        let signatures_gauge = GaugeVec::new(signatures_gauge_opts, &["height"])
+        let signatures = Gauge::new("signatures", "Number of validators signatures per block")
             .expect("unable to create gauge for signatures count");
 
         Self {
-            signatures_histogram,
-            signatures_gauge,
+            // signatures_histogram,
+            signatures,
         }
     }
 }

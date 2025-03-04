@@ -15,6 +15,8 @@
 | `transfer_amount`               | Tracks the total transfer amount per token and epoch. |
 | `one_third_threshold`           | The number of validators needed to reach 1/3 voting power. |
 | `two_third_threshold`           | The number of validators needed to reach 2/3 voting power. |
+| `slashes`                       | Count occurring slashes.                                  |
+| `signatures`                    | Cout how many signatures there are in a block             |
 
 
 ## How to add a new metric

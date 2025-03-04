@@ -1,10 +1,9 @@
 /// ## Slashes Counter (slashes)
-/// This metric tracks the number of validators that signed the block, providing visibility into the block
-/// signing activity over time.
+/// This metric tracks the number of validators that has been slashed in the last block.
 ///
 /// ### Example
 /// ```text
-/// # HELP slashes Number of validators that signed the block
+/// # HELP slashes Number of validators that has been slashed per block
 /// # TYPE slashes histogram
 /// slashes_bucket{le="0.005"} 0
 /// slashes_bucket{le="0.01"} 0
@@ -23,55 +22,40 @@
 /// ```
 use crate::state::State;
 use anyhow::Result;
-use prometheus_exporter::prometheus::{Histogram, HistogramOpts, Registry};
+use prometheus_exporter::prometheus::{
+    core::{AtomicU64, GenericCounter},
+    Registry,
+};
 
 use super::MetricTrait;
-use prometheus_exporter::prometheus::{GaugeVec, Opts};
 
 pub struct Slashes {
-    /// Histogram of the number of validators that signed the block
-    slashes_histogram: Histogram,
-    /// GaugeVec to track the number of slashes with the block height as a label
-    slashes_gauge: GaugeVec,
+    /// Overall slashes count (will only increase)
+    slashes: GenericCounter<AtomicU64>,
 }
 
 impl MetricTrait for Slashes {
     fn register(&self, registry: &Registry) -> Result<()> {
-        registry.register(Box::new(self.slashes_histogram.clone()))?;
-        registry.register(Box::new(self.slashes_gauge.clone()))?;
+        registry.register(Box::new(self.slashes.clone()))?;
         Ok(())
     }
 
     fn reset(&self, _state: &State) {
         // Histograms do not have a reset method, so we do nothing here
-        self.slashes_gauge.reset();
+        self.slashes.reset();
     }
 
     fn update(&self, _pre_state: &State, post_state: &State) {
         let total_slashes = post_state.get_slashes();
-        self.slashes_histogram.observe(total_slashes as f64);
-
-        let height = post_state.get_block().block.header.height;
-        self.slashes_gauge
-            .with_label_values(&[&height.to_string()])
-            .set(total_slashes as f64);
+        self.slashes.inc_by(total_slashes);
     }
 }
 
 impl Default for Slashes {
     fn default() -> Self {
-        let slashes_opts = HistogramOpts::new("slashes", "Number of slashed validators");
-        let slashes_histogram =
-            Histogram::with_opts(slashes_opts).expect("unable to create histogram for slashes");
+        let slashes = GenericCounter::new("slashes", "Number of validators slashed")
+            .expect("unable to create counter for slashes count");
 
-        let slashes_gauge_opts =
-            Opts::new("slashes_count", "Number of validators slashed per block");
-        let slashes_gauge = GaugeVec::new(slashes_gauge_opts, &["height"])
-            .expect("unable to create gauge for slashes count");
-
-        Self {
-            slashes_histogram,
-            slashes_gauge,
-        }
+        Self { slashes }
     }
 }

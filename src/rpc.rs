@@ -270,16 +270,24 @@ impl Rpc {
 
     async fn concurrent_requests<T, E>(
         &self,
-        mut futures: Vec<impl Future<Output = Result<T, E>> + Unpin>,
+        futures: Vec<impl Future<Output = Result<T, E>> + Unpin>,
     ) -> Option<T> {
+        self.concurrent_requests_idx(futures)
+            .await
+            .map(|(_idx, value)| value)
+    }
+
+    async fn concurrent_requests_idx<T, E>(
+        &self,
+        mut futures: Vec<impl Future<Output = Result<T, E>> + Unpin>,
+    ) -> Option<(usize, T)> {
         while !futures.is_empty() {
-            let (result, _index, remaining) = futures::future::select_all(futures).await;
+            let (result, index, remaining) = futures::future::select_all(futures).await;
             match result {
-                Ok(value) => return Some(value),
+                Ok(value) => return Some((index, value)),
                 Err(_) => futures = remaining,
             }
         }
-
         None
     }
 }

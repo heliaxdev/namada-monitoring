@@ -1,3 +1,18 @@
+/// ## Peers Metric (peers)
+/// This metric tracks the number of active peers known to the node. It helps monitor network connectivity, ensuring the node is maintaining
+/// a healthy number of connections to other peers. Eg. a bunch of nodes going offline at once - could be a sign of some sort of DoS attack
+///
+/// * The metric is a gauge, meaning it can increase or decrease based on peer availability.
+/// * Each peer is labeled with its moniker
+
+/// ### Example
+/// ```
+/// # HELP namada_peers Number of peers known
+/// # TYPE namada_peers gauge
+/// namada_peers{moniker="technodrome-v1.0.0"} 73
+/// namada_peers{moniker="technodrome-v1.0.0-dirty"} 3
+/// namada_peers{moniker="technodrome-v1.0.1-sec.2"} 21
+/// ```
 use crate::state::State;
 use anyhow::Result;
 use prometheus_exporter::prometheus::{GaugeVec, Opts, Registry};
