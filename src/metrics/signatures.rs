@@ -50,10 +50,8 @@ impl MetricTrait for Signatures {
 
 impl Default for Signatures {
     fn default() -> Self {
-        let signatures = Gauge::new(
-            "signatures",
-            "Number of validators signatures per block",
-        ).expect("unable to create gauge for signatures count");
+        let signatures = Gauge::new("signatures", "Number of validators signatures per block")
+            .expect("unable to create gauge for signatures count");
 
         Self {
             // signatures_histogram,

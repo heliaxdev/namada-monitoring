@@ -4,7 +4,7 @@
 ///  - one_third_threshold: The number of validators needed to reach 1/3 of the voting power.
 ///  - two_third_threshold: The number of validators needed to reach 2/3 of the voting power.
 ///  - total_voting_power: The total voting power of the network.
-/// 
+///
 /// ### Example
 /// ```
 /// # HELP one_third_threshold Number of validators to reach 1/3 of the voting power
@@ -14,11 +14,11 @@
 /// # HELP two_third_threshold Number of validators to reach 2/3 of the voting power
 /// # TYPE two_third_threshold gauge
 /// two_third_threshold 12
-/// 
+///
 /// # HELP total_voting_power The total voting power of the network
 /// # TYPE total_voting_power gauge
 /// total_voting_power 20
-/// 
+///
 /// ```
 use crate::state::State;
 use anyhow::Result;
@@ -51,7 +51,8 @@ impl MetricTrait for VotingPower {
                 .validators_with_voting_power(2.0 / 3.0)
                 .unwrap_or_default() as f64,
         );
-        self.total_voting_power.set(state.total_voting_power() as f64);
+        self.total_voting_power
+            .set(state.total_voting_power() as f64);
     }
 
     fn update(&self, _pre_state: &State, post_state: &State) {

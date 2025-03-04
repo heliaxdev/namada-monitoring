@@ -55,8 +55,7 @@ impl MetricTrait for Fees {
 
 impl Default for Fees {
     fn default() -> Self {
-        let fees_opts =
-            Opts::new("fees", "Total fees paid per block and per token");
+        let fees_opts = Opts::new("fees", "Total fees paid per block and per token");
         let fees = CounterVec::new(fees_opts, &["token"])
             .expect("unable to create int counter for transaction kinds");
 

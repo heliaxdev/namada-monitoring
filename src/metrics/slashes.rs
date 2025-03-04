@@ -22,10 +22,12 @@
 /// ```
 use crate::state::State;
 use anyhow::Result;
-use prometheus_exporter::prometheus::{core::{AtomicU64, GenericCounter}, Registry};
+use prometheus_exporter::prometheus::{
+    core::{AtomicU64, GenericCounter},
+    Registry,
+};
 
 use super::MetricTrait;
-
 
 pub struct Slashes {
     /// Overall slashes count (will only increase)
@@ -54,8 +56,6 @@ impl Default for Slashes {
         let slashes = GenericCounter::new("slashes", "Number of validators slashed")
             .expect("unable to create counter for slashes count");
 
-        Self {
-            slashes,
-        }
+        Self { slashes }
     }
 }

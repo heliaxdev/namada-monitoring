@@ -34,8 +34,7 @@ impl MetricTrait for BlockHeight {
 
     fn reset(&self, state: &State) {
         self.block_height.reset();
-        self.block_height
-            .inc_by(state.get_last_block().height);
+        self.block_height.inc_by(state.get_last_block().height);
     }
 
     fn update(&self, pre_state: &State, post_state: &State) {

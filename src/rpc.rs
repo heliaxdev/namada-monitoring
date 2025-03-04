@@ -272,7 +272,9 @@ impl Rpc {
         &self,
         futures: Vec<impl Future<Output = Result<T, E>> + Unpin>,
     ) -> Option<T> {
-        self.concurrent_requests_idx(futures).await.map(|(_idx, value)| value)
+        self.concurrent_requests_idx(futures)
+            .await
+            .map(|(_idx, value)| value)
     }
 
     async fn concurrent_requests_idx<T, E>(

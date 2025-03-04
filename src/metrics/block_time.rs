@@ -16,10 +16,10 @@
 /// namada_block_time_bucket{le="210"} 8
 /// namada_block_time_bucket{le="225"} 8
 /// namada_block_time_bucket{le="240"} 8
-/// 
+///
 use crate::state::State;
 use anyhow::Result;
-use prometheus_exporter::prometheus::{Histogram, HistogramOpts, Registry, exponential_buckets};
+use prometheus_exporter::prometheus::{exponential_buckets, Histogram, HistogramOpts, Registry};
 
 use super::MetricTrait;
 
@@ -32,8 +32,8 @@ impl Default for BlockTime {
     fn default() -> Self {
         // Define exponential buckets: start at 2, grow by factor 1.5, with 10 buckets
         let buckets = exponential_buckets(2.0, 1.5, 15).unwrap();
-        let block_time_opts = HistogramOpts::new("block_time", "The time spent processing block")
-            .buckets(buckets);
+        let block_time_opts =
+            HistogramOpts::new("block_time", "The time spent processing block").buckets(buckets);
         let block_time = Histogram::with_opts(block_time_opts)
             .expect("unable to create histogram blocks used time");
 
