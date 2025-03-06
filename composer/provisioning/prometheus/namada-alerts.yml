@@ -138,3 +138,16 @@ groups:
         Transfer Amount: {{ $value }} {{ $labels.token }}
         This exceeds 2x the **median** transfer amount in the last 7 days.
         Block height: {{ with query "namada_block_height" }}{{ printf "%.0f" (. | first | value) }}{{ end }}
+
+  - alert: HighSlashingRate
+    expr: |
+      rate(slashes[10m]) > 2 * quantile(0.50, rate(slashes[7d]))
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Unusual number of validator slashes"
+      description: |
+        The slashing rate is abnormally high—more than twice the median of the last 7 days.
+        This could indicate a network issue or malicious behavior. 
+        Block height: {{ with query "namada_block_height" }}{{ printf "%.0f" (. | first | value) }}{{ end }}
