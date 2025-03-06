@@ -9,7 +9,6 @@ build target="":
     cargo build
     if [[ "w{{target}}" == "wdocker" ]]; then docker build -t namada/monitoring . ; fi
 
-
 check:
     cargo check
 

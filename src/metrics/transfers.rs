@@ -6,7 +6,7 @@
 /// ```
 /// # HELP transfer_amount Token transfer amount
 /// # TYPE transfer_amount gauge
-/// transfer_amount{token=“NAM”,epoch=“1024”} 5000
+/// transfer_amount{token=“NAM”} 5000
 /// ```
 use crate::state::State;
 use anyhow::Result;
@@ -30,7 +30,7 @@ impl MetricTrait for Transfers {
         let transfers = state.get_all_transfers();
         for transfer in transfers {
             self.transfer_amount
-                .with_label_values(&[&transfer.token, &state.get_epoch().to_string()])
+                .with_label_values(&[&transfer.token])
                 .add(transfer.amount as f64);
         }
     }
@@ -43,7 +43,7 @@ impl MetricTrait for Transfers {
 impl Default for Transfers {
     fn default() -> Self {
         let transfer_amount_opts = Opts::new("transfer_amount", "Token transfer amount");
-        let transfer_amount = GaugeVec::new(transfer_amount_opts, &["token", "epoch"])
+        let transfer_amount = GaugeVec::new(transfer_amount_opts, &["token"])
             .expect("unable to create transaction transfer amount");
         Self { transfer_amount }
     }
