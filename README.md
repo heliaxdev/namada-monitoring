@@ -73,8 +73,15 @@ cargo run -- --rpc <vector of rpc urls>
     ```
 3. **Explore the dashboards/alerts**
 
-     Grafana dashboards(admin/admin):`open http://127.0.0.1:3000`
+    Grafana dashboards(admin/admin):`open http://127.0.0.1:3000`
 
-     Prometheus database and alert rules:`open http://127.0.0.1:9090/alerts`
+    Prometheus database and alert rules:`open http://127.0.0.1:9090/alerts`
 
-     Namada monitor metrics: `open http://127.0.0.1:9184/metrics`
+    Namada monitor metrics: `open http://127.0.0.1:9184/metrics`
+
+See `composer/.env` to monitor different chains. Currently this setting only support one chain at a time:
+
+```sh
+CHAIN_ID=namada.5f5de2dd1b88cba30586420
+RPC=https://rpc.namada-archive.citizenweb3.com,http://104.251.123.123:26657
+```
