@@ -19,7 +19,6 @@ groups:
 
   - alert: NamadaVotingPowerConcentration
     expr: namada_one_third_threshold > 0.6 * namada_two_third_threshold
-    for: 1m
     labels:
       severity: critical
     annotations:
@@ -44,66 +43,36 @@ groups:
 
   - alert: NamadaAbnormalUnbonding
     expr: rate(namada_unbonds_per_epoch[10m]) > 1.5 * avg_over_time(namada_unbonds_per_epoch[7d])
-    for: 5m
     labels:
       severity: warning
     annotations:
       summary: "Unusual increase in unbonding activity"
       description: "Unbonding per epoch has increased significantly over the last 10 minutes compared to the average of last 7 days. Block height: {{ with query \"namada_block_height\" }}{{ printf \"%.0f\" (. | first | value)}}{{ end }}"
 
-  - alert: NamadaZeroTransactionBatches
-    expr: namada_transaction_batch_size_count == 0
-    for: 10m
+  - alert: NamadaTransactionBatchSpike
+    expr: |
+      rate(namada_transaction_batch_size_count[10m])
+      > (2 * quantile(0.50, rate(namada_transaction_batch_size_count[7d])))
     labels:
       severity: warning
     annotations:
-      summary: "No transaction batches processed"
-      description: "No transactions have been batched for the last 10 minutes, which might indicate network inactivity. Block height: {{ with query \"namada_block_height\" }}{{ printf \"%.0f\" (. | first | value)}}{{ end }}"
-
-  - alert: NamadaPeerCountLow
-    expr: count(namada_peers) < 10
-    for: 5m
-    labels:
-      severity: critical
-    annotations:
-      summary: "Namada peer count is critically low!"
-      description: "The number of active Namada peers has dropped below 10 for more than 5 minutes. This may indicate network instability or a partition issue. Block height: {{ with query \"namada_block_height\" }}{{ printf \"%.0f\" (. | first | value)}}{{ end }}"
-
-  - alert: NamadaPeerCountDrop
-    expr: count(namada_peers) < quantile(0.5, count_over_time(namada_peers[10m])) - 10
-    for: 2m
-    labels:
-      severity: warning
-    annotations:
-      summary: "Sudden drop in Namada peer count"
-      description: |
-        The number of active Namada peers dropped significantly in the last 10 minutes.
-        Previous 10min median: {{ with query "quantile(0.5, count_over_time(namada_peers[10m]))" }}{{ printf "%.0f" (. | first | value)}}{{ end }}
-        Current count: {{ with query "count(namada_peers)" }}{{ printf "%.0f" (. | first | value)}}{{ end }}
-        Block height: {{ with query "namada_block_height" }}{{ printf "%.0f" (. | first | value)}}{{ end }}
+      summary: "Spike in transaction batch size"
+      description: "Transaction batching has significantly increased over the last 10 minutes compared to the 7-day median. Block height: {{ with query \"namada_block_height\" }}{{ printf \"%.0f\" (. | first | value)}}{{ end }}"
         
-
-  - alert: NamadaNoPeers
-    expr: count(namada_peers) == 0
-    for: 30m
-    labels:
-      severity: critical
-    annotations:
-      summary: "Namada has no active peers!"
-      description: "There are currently no active peers connected to Namada. This might indicate a network outage or severe connectivity issues. Block height: {{ with query \"namada_block_height\" }}{{ printf \"%.0f\" (. | first | value)}}{{ end }}"
-
-  - alert: HighTransactionFees
-    expr: namada_fees > 10
-    for: 1m
+  - alert: HighTransactionFeesAnomaly
+    expr: |
+      (increase(namada_fees[10m]) / increase(namada_block_height[10m]))
+      > (
+          avg_over_time(namada_fees[10m]) / avg_over_time(namada_block_height[10m])
+          + 2 * stddev_over_time(namada_fees[10m]) / avg_over_time(namada_block_height[10m])
+        )
     labels:
       severity: warning
     annotations:
-      summary: "High Transaction Fees Detected - Threshold"
-      description: "Total transaction fees in block {{ $labels.height }} exceeded the threshold. Current value: {{ $value }} NAM. Block height: {{ with query \"namada_block_height\" }}{{ printf \"%.0f\" (. | first | value)}}{{ end }}"
-
+      summary: "Anomalous Transaction Fees"
+      description: "Transaction fees per block exceeded normal range. Current: {{ $value }} NAM. Expected: < {{ with query \"avg_over_time(namada_fees[10m]) + 2 * stddev_over_time(namada_fees[10m])\" }}{{ printf \"%.2f\" (. | first | value)}}{{ end }}."
   - alert: HighTransactionFeesAvg
     expr: sum(fees_counter) > 2 * sum(avg_over_time(fees_counter[10m]))
-    for: 1m
     labels:
       severity: warning
     annotations:
@@ -127,8 +96,8 @@ groups:
         
   - alert: WhaleTransactionDetected
     expr: |
-      transfer_amount > 2 * quantile(0.50, avg_over_time(transfer_amount[7d])) by (token)
-    for: 1m
+      transfer_amount > 10 * quantile(0.50, avg_over_time(transfer_amount[7d])) by (token)
+      #### 2 std dev from
     labels:
       severity: warning
     annotations:
@@ -137,4 +106,16 @@ groups:
         A large transfer was detected in {{ $labels.token }}.
         Transfer Amount: {{ $value }} {{ $labels.token }}
         This exceeds 2x the **median** transfer amount in the last 7 days.
+        Block height: {{ with query "namada_block_height" }}{{ printf "%.0f" (. | first | value) }}{{ end }}
+
+  - alert: HighSlashingRate
+    expr: |
+      slashes > 0
+    labels:
+      severity: critical
+    annotations:
+      summary: "Unusual number of validator slashes"
+      description: |
+        The slashing rate is abnormally high—more than twice the median of the last 7 days.
+        This could indicate a network issue or malicious behavior. 
         Block height: {{ with query "namada_block_height" }}{{ printf "%.0f" (. | first | value) }}{{ end }}

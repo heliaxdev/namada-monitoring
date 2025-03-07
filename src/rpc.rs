@@ -1,11 +1,7 @@
 use anyhow::Context;
 use futures::FutureExt;
 use namada_sdk::{
-    address::Address as NamadaAddress,
-    hash::Hash,
-    io::Client,
-    rpc,
-    state::{BlockHeight, Epoch as NamadaEpoch, Key},
+    address::Address as NamadaAddress, chain, hash::Hash, io::Client, rpc, state::{BlockHeight, Epoch as NamadaEpoch, Key}, tendermint::node::Id
 };
 use std::{future::Future, str::FromStr};
 use tendermint_rpc::{endpoint::net_info::PeerInfo, HttpClient, Url};
@@ -184,7 +180,7 @@ impl Rpc {
     //         ]
     //     }
     //     }
-    pub async fn query_peers(&self) -> anyhow::Result<Vec<PeerInfo>> {
+    pub async fn query_peers(&self) -> anyhow::Result<(Id, Vec<PeerInfo>)> {
         let futures = self
             .clients
             .iter()
@@ -192,11 +188,19 @@ impl Rpc {
             .collect();
 
         let res = self
-            .concurrent_requests(futures)
+            .concurrent_requests_idx(futures)
             .await
             .context("Should be able to query peers");
 
-        res.map(|info| info.peers)
+        match res {
+            Ok((idx, info)) => {
+                let peers: Vec<PeerInfo> = info.peers;
+                let client = &self.clients[idx];
+                let chain_id = client.status().await?.node_info.id;
+                Ok((chain_id, peers))
+            },
+            _ => Err(anyhow::anyhow!("No peers found")),
+        }
     }
 
     pub async fn query_native_token(&self) -> anyhow::Result<Address> {
