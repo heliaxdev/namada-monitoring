@@ -327,7 +327,7 @@
           {
             "disableTextWrap": false,
             "editorMode": "code",
-            "expr": "increase   ",
+            "expr": "namada_epoch",
             "fullMetaSearch": false,
             "includeNullMetadata": true,
             "legendFormat": "__auto",
