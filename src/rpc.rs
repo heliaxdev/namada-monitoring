@@ -1,7 +1,13 @@
 use anyhow::Context;
 use futures::FutureExt;
 use namada_sdk::{
-    address::Address as NamadaAddress, chain, hash::Hash, io::Client, rpc, state::{BlockHeight, Epoch as NamadaEpoch, Key}, tendermint::node::Id
+    address::Address as NamadaAddress,
+    chain,
+    hash::Hash,
+    io::Client,
+    rpc,
+    state::{BlockHeight, Epoch as NamadaEpoch, Key},
+    tendermint::node::Id,
 };
 use std::{future::Future, str::FromStr};
 use tendermint_rpc::{endpoint::net_info::PeerInfo, HttpClient, Url};
@@ -198,7 +204,7 @@ impl Rpc {
                 let client = &self.clients[idx];
                 let chain_id = client.status().await?.node_info.id;
                 Ok((chain_id, peers))
-            },
+            }
             _ => Err(anyhow::anyhow!("No peers found")),
         }
     }
