@@ -2,7 +2,6 @@ use anyhow::Context;
 use futures::FutureExt;
 use namada_sdk::{
     address::Address as NamadaAddress,
-    chain,
     hash::Hash,
     io::Client,
     rpc,
