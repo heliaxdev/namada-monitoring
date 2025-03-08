@@ -2,12 +2,14 @@ groups:
 - name: namada-validator-alerts
   rules:
   - alert: NamadaBlockHeightStalled
-    expr: increase(namada_block_height[1m]) == 0
+    expr: increase(namada_block_height{ chain_id="$$CHAIN_ID$$" }[1m]) == 0
     labels:
       severity: critical
     annotations:
       summary: "Namada block height is not increasing"
-      description: "The validators at {{ $labels.instance }} appears to be stalled as the block height has not increased for 5 minutes. Last recorded block height: {{ with query \"namada_block_height\" }}{{ printf \"%.0f\" (. | first | value)}}{{ end }} "
+      description: |
+          The validators at {{ $labels.chain_id }} appears to be stalled as the block height has not increased for 5 minutes. 
+          Last recorded block height: {{ with query "namada_block_height{chain_id=\"$$CHAIN_ID$$\"}" }} {{ printf "%.0f" (. | first | value)}}{{ end }}
 
   - alert: NamadaBlockProcessingSlow
     expr: rate(namada_block_time_sum[5m]) / rate(namada_block_time_count[5m]) > 10
@@ -15,106 +17,107 @@ groups:
       severity: warning
     annotations:
       summary: "Namada block processing time is slow"
-      description: "The average block processing time has exceeded 10 seconds considering the the last 5 minutes of data. Block height: {{ with query \"namada_block_height\" }}{{ printf \"%.0f\" (. | first | value)}}{{ end }}"
+      description: |
+        The average block processing time has exceeded 10 seconds considering the the last 5 minutes of data. 
+        Block height: {{ with query "namada_block_height{chain_id=\"$$CHAIN_ID$$\"}" }}{{ printf "%.0f" (. | first | value)}}{{ end }}. 
+        Chain id: {{ $labels.chain_id }}
 
   - alert: NamadaVotingPowerConcentration
-    expr: namada_one_third_threshold > 0.6 * namada_two_third_threshold
-    for: 1m
+    expr: namada_one_third_threshold{ chain_id="$$CHAIN_ID$$" } > 0.6 * namada_two_third_threshold{ chain_id="$$CHAIN_ID$$" }
     labels:
       severity: critical
     annotations:
       summary: "Low validator participation detected"
-      description: "The number of validators needed for 1/3 of the voting power if more than half the number of validators nded for 2/3 voting power. Block height: {{ with query \"namada_block_height\" }}{{ printf \"%.0f\" (. | first | value)}}{{ end }}"
+      description: |
+        The number of validators needed for 1/3 of the voting power if more than half the number of validators nded for 2/3 voting power. 
+        Block height: {{ with query "namada_block_height{ chain_id=\"$$CHAIN_ID$$\" }" }}{{ printf "%.0f" (. | first | value)}}{{ end }}
+        Chain id: {{ $labels.chain_id }}
 
   - alert: NamadaLowValidatorParticipation
-    expr: namada_one_third_threshold < 1 or namada_two_third_threshold < 1
+    expr: namada_one_third_threshold{ chain_id="$$CHAIN_ID$$" } < 1 or namada_two_third_threshold{ chain_id="$$CHAIN_ID$$" } < 1
     labels:
       severity: critical
     annotations:
       summary: "Low validator participation detected"
-      description: "The number of validators needed for 1/3 or 2/3 consensus is at zero, which indicates a potential network failure. Block height: {{ with query \"namada_block_height\" }}{{ printf \"%.0f\" (. | first | value)}}{{ end }}"
+      description: |
+        The number of validators needed for 1/3 or 2/3 consensus is at zero, which indicates a potential network failure. 
+        Block height: {{ with query "namada_block_height{ chain_id=\"$$CHAIN_ID$$\" }" }}{{ printf "%.0f" (. | first | value)}}{{ end }}
+        Chain id: {{ $labels.chain_id }}
 
   - alert: NamadaAbnormalBonding
-    expr: rate(namada_bonds_per_epoch[10m]) > 1.5 * avg_over_time(namada_bonds_per_epoch[7d])
+    expr: rate(namada_bonds_per_epoch{ chain_id="$$CHAIN_ID$$" }[10m]) > 1.5 * avg_over_time(namada_bonds_per_epoch{ chain_id="$$CHAIN_ID$$" }[7d])
     labels:
       severity: warning
     annotations:
       summary: "Unusual increase in bonding activity"
-      description: "Bonding per epoch has increased significantly over the last 10 minutes compared to the average of last 7 days. Block height: {{ with query \"namada_block_height\" }}{{ printf \"%.0f\" (. | first | value)}}{{ end }}"
+      description: |
+        Bonding per epoch has increased significantly over the last 10 minutes compared to the average of last 7 days. 
+        Block height: {{ with query "namada_block_height{ chain_id=\"$$CHAIN_ID$$\" }" }}{{ printf "%.0f" (. | first | value)}}{{ end }}
+        Chain id: {{ $labels.chain_id }}
+
 
   - alert: NamadaAbnormalUnbonding
-    expr: rate(namada_unbonds_per_epoch[10m]) > 1.5 * avg_over_time(namada_unbonds_per_epoch[7d])
-    for: 5m
+    expr: rate(namada_unbonds_per_epoch{ chain_id="$$CHAIN_ID$$" }[10m]) > 1.5 * avg_over_time(namada_unbonds_per_epoch{ chain_id="$$CHAIN_ID$$" }[7d])
     labels:
       severity: warning
     annotations:
       summary: "Unusual increase in unbonding activity"
-      description: "Unbonding per epoch has increased significantly over the last 10 minutes compared to the average of last 7 days. Block height: {{ with query \"namada_block_height\" }}{{ printf \"%.0f\" (. | first | value)}}{{ end }}"
-
-  - alert: NamadaZeroTransactionBatches
-    expr: namada_transaction_batch_size_count == 0
-    for: 10m
-    labels:
-      severity: warning
-    annotations:
-      summary: "No transaction batches processed"
-      description: "No transactions have been batched for the last 10 minutes, which might indicate network inactivity. Block height: {{ with query \"namada_block_height\" }}{{ printf \"%.0f\" (. | first | value)}}{{ end }}"
-
-  - alert: NamadaPeerCountLow
-    expr: count(namada_peers) < 10
-    for: 5m
-    labels:
-      severity: critical
-    annotations:
-      summary: "Namada peer count is critically low!"
-      description: "The number of active Namada peers has dropped below 10 for more than 5 minutes. This may indicate network instability or a partition issue. Block height: {{ with query \"namada_block_height\" }}{{ printf \"%.0f\" (. | first | value)}}{{ end }}"
-
-  - alert: NamadaPeerCountDrop
-    expr: count(namada_peers) < quantile(0.5, count_over_time(namada_peers[10m])) - 10
-    for: 2m
-    labels:
-      severity: warning
-    annotations:
-      summary: "Sudden drop in Namada peer count"
       description: |
-        The number of active Namada peers dropped significantly in the last 10 minutes.
-        Previous 10min median: {{ with query "quantile(0.5, count_over_time(namada_peers[10m]))" }}{{ printf "%.0f" (. | first | value)}}{{ end }}
-        Current count: {{ with query "count(namada_peers)" }}{{ printf "%.0f" (. | first | value)}}{{ end }}
-        Block height: {{ with query "namada_block_height" }}{{ printf "%.0f" (. | first | value)}}{{ end }}
-        
+        Unbonding per epoch has increased significantly over the last 10 minutes compared to the average of last 7 days.
+        Block height: {{ with query "namada_block_height{ chain_id=\"$$CHAIN_ID$$\" }" }}{{ printf "%.0f" (. | first | value)}}{{ end }}
+        Chain id: {{ $labels.chain_id }}
 
-  - alert: NamadaNoPeers
-    expr: count(namada_peers) == 0
-    for: 30m
-    labels:
-      severity: critical
-    annotations:
-      summary: "Namada has no active peers!"
-      description: "There are currently no active peers connected to Namada. This might indicate a network outage or severe connectivity issues. Block height: {{ with query \"namada_block_height\" }}{{ printf \"%.0f\" (. | first | value)}}{{ end }}"
-
-  - alert: HighTransactionFees
-    expr: namada_fees > 10
-    for: 1m
+  - alert: NamadaTransactionBatchSpike
+    expr: |
+      rate(namada_transaction_batch_size_count{ chain_id="$$CHAIN_ID$$" }[10m]) > (2 * quantile(0.50, rate(namada_transaction_batch_size_count[7d])))
     labels:
       severity: warning
     annotations:
-      summary: "High Transaction Fees Detected - Threshold"
-      description: "Total transaction fees in block {{ $labels.height }} exceeded the threshold. Current value: {{ $value }} NAM. Block height: {{ with query \"namada_block_height\" }}{{ printf \"%.0f\" (. | first | value)}}{{ end }}"
+      summary: "Spike in transaction batch size"
+      description: |
+        Transaction batching has significantly increased over the last 10 minutes compared to the 7-day median. 
+        Block height: {{ with query "namada_block_height{ chain_id=\"$$CHAIN_ID$$\" }" }}{{ printf "%.0f" (. | first | value)}}{{ end }}
+        Chain id: {{ $labels.chain_id }}
+        
+  - alert: HighTransactionFeesAnomaly
+    expr: |
+      (sum by (token) (increase(namada_fees{ chain_id="$$CHAIN_ID$$" }[10m])) / increase(namada_block_height{ chain_id="$$CHAIN_ID$$" }[10m])) 
+      > (
+          sum by (token) (avg_over_time(namada_fees{ chain_id="$$CHAIN_ID$$" }[10m])) / avg_over_time(namada_block_height{ chain_id="$$CHAIN_ID$$" }[10m]) 
+          + 2 * sum by (token) (stddev_over_time(namada_fees{ chain_id="$$CHAIN_ID$$" }[10m])) / avg_over_time(namada_block_height{ chain_id="$$CHAIN_ID$$" }[10m])
+        )
+    labels:
+      severity: warning
+    annotations:
+      summary: "Anomalous Transaction Fees for Token {{ $labels.token }}"
+      description: |
+        Transaction fees per block for token {{ $labels.token }} have exceeded the expected range. 
+        Current: {{ $value }} NAM. 
+        Expected: < {{ with query "sum by (token) (avg_over_time(namada_fees{ chain_id=\"$$CHAIN_ID$$\" }[10m])) + 2 * sum by (token) (stddev_over_time(namada_fees{ chain_id=\"$$CHAIN_ID$$\" }[10m]))" }}{{ printf "%.2f" (. | first | value)}}{{ end }} NAM.
+        Chain id: {{ $labels.chain_id }}
 
   - alert: HighTransactionFeesAvg
-    expr: sum(fees_counter) > 2 * sum(avg_over_time(fees_counter[10m]))
-    for: 1m
+    expr: |
+      (sum by (token) (increase(namada_fees{ chain_id="$$CHAIN_ID$$" }[10m])) / increase(namada_block_height{ chain_id="$$CHAIN_ID$$" }[10m]))
+      > (
+          scalar(sum by (token) (avg_over_time(namada_fees{ chain_id="$$CHAIN_ID$$" }[10m]))) / scalar(avg_over_time(namada_block_height{ chain_id="$$CHAIN_ID$$" }[10m]))
+          + 2 * scalar(sum by (token) (stddev_over_time(namada_fees{ chain_id="$$CHAIN_ID$$" }[10m]))) / scalar(avg_over_time(namada_block_height{ chain_id="$$CHAIN_ID$$" }[10m]))
+        )
     labels:
       severity: warning
     annotations:
-      summary: "Unusual Transaction Fees Detected - 10m Average"
-      description: "Transaction fees in block {{ $labels.height }} are unusually high (comapred with recent 10m average). Current: {{ $value }} NAM. Block height: {{ with query \"namada_block_height\" }}{{ printf \"%.0f\" (. | first | value)}}{{ end }}"
-  
+      summary: "Unusual Transaction Fees for Token {{ $labels.token }}"
+      description: |
+        Transaction fees per block for token {{ $labels.token }} are unusually high. 
+        Current: {{ $value }} NAM. 
+        Expected: < {{ with query "scalar(sum by (token) (avg_over_time(namada_fees{ chain_id=\"$$CHAIN_ID$$\" }[10m]))) + 2 * scalar(sum by (token) (stddev_over_time(namada_fees{ chain_id=\"$$CHAIN_ID$$\" }[10m])))" }}{{ printf "%.2f" (. | first | value)}}{{ end }} NAM.
+        Chain id: {{ $labels.chain_id }}
+
   - alert: AbnormalInnerTransactionFailureRate
     expr: |
-      (rate(namada_transaction_kind{failed="true"}[10m]) / rate(namada_transaction_kind[10m]))
+      (rate(namada_transaction_kind{chain_id="$$CHAIN_ID$$", failed="true"}[10m]) / rate(namada_transaction_kind{ chain_id="$$CHAIN_ID$$" }[10m]))
       >
-      (2 * quantile(0.50, rate(namada_transaction_kind{failed="true"}[7d:]) / rate(namada_transaction_kind[7d:])))
+      (2 * quantile(0.50, rate(namada_transaction_kind{chain_id="$$CHAIN_ID$$", failed="true"}[7d:]) / rate(namada_transaction_kind{chain_id="$$CHAIN_ID$$"}[7d:])))
     labels:
       severity: critical
     annotations:
@@ -123,12 +126,15 @@ groups:
         The failure rate of inner transactions has spiked abnormally.
         Current failure rate: {{ $value }}
         This is **more than 2x the historical median** failure rate over the past 7 days.
-        Block height: {{ with query "namada_block_height" }}{{ printf "%.0f" (. | first | value) }}{{ end }}
-        
+        Block height: {{ with query "namada_block_height{chain_id=\"$$CHAIN_ID$$\"}" }}{{ printf "%.0f" (. | first | value) }}{{ end }}
+        Chain id: {{ $labels.chain_id }}
+
+
   - alert: WhaleTransactionDetected
     expr: |
-      transfer_amount > 2 * quantile(0.50, avg_over_time(transfer_amount[7d])) by (token)
-    for: 1m
+        transfer_amount{chain_id="$$CHAIN_ID$$"}
+        > avg_over_time(transfer_amount{chain_id="$$CHAIN_ID$$"}[7d]) 
+        + 2 * stddev_over_time(transfer_amount{chain_id="$$CHAIN_ID$$"}[7d])
     labels:
       severity: warning
     annotations:
@@ -136,18 +142,18 @@ groups:
       description: |
         A large transfer was detected in {{ $labels.token }}.
         Transfer Amount: {{ $value }} {{ $labels.token }}
-        This exceeds 2x the **median** transfer amount in the last 7 days.
-        Block height: {{ with query "namada_block_height" }}{{ printf "%.0f" (. | first | value) }}{{ end }}
+        This exceeds 2x the standard deviation from the average transfer amount in the last 7 days.
+        Block height: {{ with query "namada_block_height{chain_id=\"$$CHAIN_ID$$\"} " }}{{ printf "%.0f" (. | first | value) }}{{ end }}
+        Chain id: {{ $labels.chain_id }}
 
   - alert: HighSlashingRate
     expr: |
-      rate(slashes[10m]) > 2 * quantile(0.50, rate(slashes[7d]))
-    for: 5m
+      slashes{chain_id="$$CHAIN_ID$$"} > 0
     labels:
       severity: critical
     annotations:
       summary: "Unusual number of validator slashes"
       description: |
-        The slashing rate is abnormally high—more than twice the median of the last 7 days.
-        This could indicate a network issue or malicious behavior. 
-        Block height: {{ with query "namada_block_height" }}{{ printf "%.0f" (. | first | value) }}{{ end }}
+        Slashing detected.
+        Block height: {{ with query "namada_block_height{chain_id=\"$$CHAIN_ID$$\"}" }}{{ printf "%.0f" (. | first | value) }}{{ end }}
+        Chain id: {{ $labels.chain_id }}

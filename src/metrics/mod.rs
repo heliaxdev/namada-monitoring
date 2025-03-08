@@ -3,7 +3,6 @@ mod block_time;
 mod bonds;
 mod epoch;
 mod fees;
-mod peers;
 mod signatures;
 pub mod slashes;
 mod total_supply_native_token;
@@ -18,7 +17,6 @@ use block_time::BlockTime;
 use bonds::Bonds;
 use epoch::Epoch;
 use fees::Fees;
-use peers::Peers;
 use signatures::Signatures;
 use slashes::Slashes;
 use total_supply_native_token::TotalSupplyNativeToken;
@@ -77,7 +75,6 @@ impl MetricsExporter {
             Box::<Transfers>::default() as Box<dyn MetricTrait>,
             Box::<VotingPower>::default() as Box<dyn MetricTrait>,
             Box::<BlockTime>::default() as Box<dyn MetricTrait>,
-            Box::<Peers>::default() as Box<dyn MetricTrait>,
             Box::<Fees>::default() as Box<dyn MetricTrait>,
             Box::<Signatures>::default() as Box<dyn MetricTrait>,
             Box::<Slashes>::default() as Box<dyn MetricTrait>,
