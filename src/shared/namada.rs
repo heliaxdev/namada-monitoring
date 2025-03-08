@@ -31,7 +31,7 @@ pub struct Validator {
     pub state: ValidatorState,
 }
 
-impl Validator{
+impl Validator {
     pub fn get_validator_state(&self) -> String {
         match self.state {
             ValidatorState::Consensus => "consensus".to_string(),

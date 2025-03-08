@@ -171,8 +171,12 @@ impl Rpc {
             None => Err(anyhow::anyhow!("Validator state not found")),
         }
     }
-    
-    pub async fn query_stake(&self, validator: &NamadaAddress, epoch: Epoch) -> anyhow::Result<u64> {
+
+    pub async fn query_stake(
+        &self,
+        validator: &NamadaAddress,
+        epoch: Epoch,
+    ) -> anyhow::Result<u64> {
         let futures = self
             .clients
             .iter()
