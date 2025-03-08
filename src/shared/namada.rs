@@ -2,6 +2,7 @@ use namada_sdk::borsh::BorshDeserialize;
 use namada_sdk::governance::{InitProposalData, VoteProposalData};
 use namada_sdk::ibc::{self, IbcMessage};
 use namada_sdk::key::common::PublicKey;
+use namada_sdk::proof_of_stake::types::ValidatorState;
 use namada_sdk::tendermint::block::Block as TendermintBlock;
 use namada_sdk::uint::Uint;
 use std::collections::BTreeMap;
@@ -27,6 +28,19 @@ pub type Address = String;
 pub struct Validator {
     pub address: String,
     pub voting_power: u64,
+    pub state: ValidatorState,
+}
+
+impl Validator{
+    pub fn get_validator_state(&self) -> String {
+        match self.state {
+            ValidatorState::Consensus => "consensus".to_string(),
+            ValidatorState::BelowCapacity => "below_capacity".to_string(),
+            ValidatorState::BelowThreshold => "below_threshold".to_string(),
+            ValidatorState::Inactive => "inactive".to_string(),
+            ValidatorState::Jailed => "jailed".to_string(),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]

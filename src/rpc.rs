@@ -4,6 +4,7 @@ use namada_sdk::{
     address::Address as NamadaAddress,
     hash::Hash,
     io::Client,
+    proof_of_stake::types::ValidatorState,
     rpc,
     state::{BlockHeight, Epoch as NamadaEpoch, Key},
     tendermint::node::Id,
@@ -69,7 +70,7 @@ impl Rpc {
     ) -> anyhow::Result<Option<String>> {
         let hash_key = Key::wasm_hash(tx_code_path);
 
-        let futures = self
+        let futures: Vec<_> = self
             .clients
             .iter()
             .map(|client| {
@@ -78,7 +79,9 @@ impl Rpc {
             })
             .collect();
 
-        let res = self.concurrent_requests(futures).await;
+        let res = self
+            .concurrent_requests(futures.into_iter().map(Box::pin).collect())
+            .await;
 
         if let Some(tx_code_bytes) = res.context("Should be able to get tx code")?.0 {
             Ok(Hash::try_from(&tx_code_bytes[..])
@@ -90,13 +93,15 @@ impl Rpc {
     }
 
     pub async fn query_current_epoch(&self, block_height: Height) -> anyhow::Result<Option<Epoch>> {
-        let futures = self
+        let futures: Vec<_> = self
             .clients
             .iter()
             .map(|client| rpc::query_epoch_at_height(client, block_height.into()).boxed())
             .collect();
 
-        let res = self.concurrent_requests(futures).await;
+        let res = self
+            .concurrent_requests(futures.into_iter().map(Box::pin).collect())
+            .await;
 
         res.map(|epoch| epoch.map(|epoch| epoch.0))
             .context("Should be able to get epoch")
@@ -147,27 +152,74 @@ impl Rpc {
             ))
     }
 
+    pub async fn query_validator_state(
+        &self,
+        validator: &NamadaAddress,
+        epoch: Epoch,
+    ) -> anyhow::Result<ValidatorState> {
+        let futures = self
+            .clients
+            .iter()
+            .map(|client| rpc::get_validator_state(client, validator, Some(epoch.into())).boxed())
+            .collect();
+
+        let res = self.concurrent_requests(futures).await;
+        let (validator_state, _y) = res.context("Should be able to query validator state")?;
+
+        match validator_state {
+            Some(state_info) => Ok(state_info),
+            None => Err(anyhow::anyhow!("Validator state not found")),
+        }
+    }
+    
+    pub async fn query_stake(&self, validator: &NamadaAddress, epoch: Epoch) -> anyhow::Result<u64> {
+        let futures = self
+            .clients
+            .iter()
+            .map(|client| rpc::get_validator_stake(client, epoch.into(), validator).boxed())
+            .collect();
+
+        let res = self.concurrent_requests(futures).await;
+        let stake = res.context("Should be able to query validator stake")?;
+
+        Ok(stake.raw_amount().as_u64())
+    }
+
     pub async fn query_validators(&self, epoch: Epoch) -> anyhow::Result<Vec<Validator>> {
         let futures = self
             .clients
             .iter()
-            .map(|client| rpc::get_all_consensus_validators(client, NamadaEpoch(epoch)).boxed())
+            .map(|client| rpc::get_all_validators(client, NamadaEpoch(epoch)).boxed())
             .collect();
 
         let res = self.concurrent_requests(futures).await;
 
-        res.context("Should be able to query native token")
-            .map(|set| {
-                set.into_iter()
-                    .map(|validator| Validator {
-                        address: validator.address.to_string(),
-                        voting_power: validator.bonded_stake.raw_amount().as_u64(),
-                    })
-                    .collect()
-            })
+        let validators = res.context("Should be able to query native token")?;
+        let futures = validators.into_iter().map(|validator_address| {
+            let self_ref = self;
+            async move {
+                let voting_power = self_ref.query_stake(&validator_address, epoch).await?;
+                let state = self_ref
+                    .query_validator_state(&validator_address, epoch)
+                    .await?;
+                Ok::<_, anyhow::Error>(Validator {
+                    address: validator_address.to_string(),
+                    voting_power,
+                    state,
+                })
+            }
+        });
+
+        let results = futures::future::join_all(futures).await;
+        let validators = results
+            .into_iter()
+            .collect::<Result<Vec<_>, _>>()
+            .context("Should be able to query validator states")?;
+
+        Ok(validators)
     }
 
-    // Ask http://127.0.0.1:26657/net_info for peer isnfolike:
+    // Ask http://127.0.0.1:26657/net_info for peer
     // {
     //     "id": 0,
     //     "jsonrpc": "2.0",
