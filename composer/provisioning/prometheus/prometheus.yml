@@ -7,4 +7,4 @@ scrape_configs:
     - targets:
        - monitoring:9184    # monitoring is the composer name in the docker composer spec
 rule_files:
-  - "namada-alerts.yml"  # It should be at folder /etc/prometheus/
+  - "namada-alerts-$$CHAIN_ID$$.yml"  # It should be at folder /etc/prometheus/
