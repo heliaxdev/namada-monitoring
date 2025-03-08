@@ -55,7 +55,6 @@ groups:
         Block height: {{ with query "namada_block_height{ chain_id=\"$$CHAIN_ID$$\" }" }}{{ printf "%.0f" (. | first | value)}}{{ end }}
         Chain id: {{ $labels.chain_id }}
 
-
   - alert: NamadaAbnormalUnbonding
     expr: rate(namada_unbonds_per_epoch{ chain_id="$$CHAIN_ID$$" }[10m]) > 1.5 * avg_over_time(namada_unbonds_per_epoch{ chain_id="$$CHAIN_ID$$" }[7d])
     labels:
@@ -92,8 +91,8 @@ groups:
       summary: "Anomalous Transaction Fees for Token {{ $labels.token }}"
       description: |
         Transaction fees per block for token {{ $labels.token }} have exceeded the expected range. 
-        Current: {{ $value }} NAM. 
-        Expected: < {{ with query "sum by (token) (avg_over_time(namada_fees{ chain_id=\"$$CHAIN_ID$$\" }[10m])) + 2 * sum by (token) (stddev_over_time(namada_fees{ chain_id=\"$$CHAIN_ID$$\" }[10m]))" }}{{ printf "%.2f" (. | first | value)}}{{ end }} NAM.
+        Current: {{ $value }}. 
+        Expected: < {{ with query "sum by (token) (avg_over_time(namada_fees{ chain_id=\"$$CHAIN_ID$$\" }[10m])) + 2 * sum by (token) (stddev_over_time(namada_fees{ chain_id=\"$$CHAIN_ID$$\" }[10m]))" }}{{ printf "%.2f" (. | first | value)}}{{ end }}.
         Chain id: {{ $labels.chain_id }}
 
   - alert: HighTransactionFeesAvg
@@ -129,7 +128,6 @@ groups:
         Block height: {{ with query "namada_block_height{chain_id=\"$$CHAIN_ID$$\"}" }}{{ printf "%.0f" (. | first | value) }}{{ end }}
         Chain id: {{ $labels.chain_id }}
 
-
   - alert: WhaleTransactionDetected
     expr: |
         transfer_amount{chain_id="$$CHAIN_ID$$"}
@@ -157,3 +155,78 @@ groups:
         Slashing detected.
         Block height: {{ with query "namada_block_height{chain_id=\"$$CHAIN_ID$$\"}" }}{{ printf "%.0f" (. | first | value) }}{{ end }}
         Chain id: {{ $labels.chain_id }}
+
+  - alert: AbnormalConsensusValidatorIncrease
+    expr: |
+      (
+        namada_consensus_validators{chain_id="namada.5f5de2dd1b88cba30586420"}
+        - avg_over_time(namada_consensus_validators{chain_id="namada.5f5de2dd1b88cba30586420"}[7d:1h])
+      ) > (2 * stddev_over_time(namada_consensus_validators{chain_id="namada.5f5de2dd1b88cba30586420"}[7d:1h]))
+    for: 10m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Abnormal increase in consensus validators"
+      description: |
+        The number of validators in the consensus state has increased abnormally.
+        Chain ID: namada.5f5de2dd1b88cba30586420
+
+  - alert: AbnormalInactiveValidatorIncrease
+    expr: |
+      (
+        namada_inactive_validators{chain_id="namada.5f5de2dd1b88cba30586420"}
+        - avg_over_time(namada_inactive_validators{chain_id="namada.5f5de2dd1b88cba30586420"}[7d:1h])
+      ) > (2 * stddev_over_time(namada_inactive_validators{chain_id="namada.5f5de2dd1b88cba30586420"}[7d:1h]))
+    for: 10m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Abnormal increase in inactive validators"
+      description: |
+        The number of inactive validators has increased abnormally.
+        Chain ID: namada.5f5de2dd1b88cba30586420
+
+  - alert: AbnormalJailedValidatorIncrease
+    expr: |
+      (
+        namada_jailed_validators{chain_id="namada.5f5de2dd1b88cba30586420"}
+        - avg_over_time(namada_jailed_validators{chain_id="namada.5f5de2dd1b88cba30586420"}[7d:1h])
+      ) > (2 * stddev_over_time(namada_jailed_validators{chain_id="namada.5f5de2dd1b88cba30586420"}[7d:1h]))
+    for: 10m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Abnormal increase in jailed validators"
+      description: |
+        The number of jailed validators has increased abnormally.
+        Chain ID: namada.5f5de2dd1b88cba30586420
+
+  - alert: AbnormalBelowThresholdValidatorIncrease
+    expr: |
+      (
+        namada_below_threshold_validators{chain_id="namada.5f5de2dd1b88cba30586420"}
+        - avg_over_time(namada_below_threshold_validators{chain_id="namada.5f5de2dd1b88cba30586420"}[7d:1h])
+      ) > (2 * stddev_over_time(namada_below_threshold_validators{chain_id="namada.5f5de2dd1b88cba30586420"}[7d:1h]))
+    for: 10m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Abnormal increase in below-threshold validators"
+      description: |
+        The number of validators below the threshold has increased abnormally.
+        Chain ID: namada.5f5de2dd1b88cba30586420
+
+  - alert: AbnormalBelowCapacityValidatorIncrease
+    expr: |
+      (
+        namada_below_capacity_validators{chain_id="namada.5f5de2dd1b88cba30586420"}
+        - avg_over_time(namada_below_capacity_validators{chain_id="namada.5f5de2dd1b88cba30586420"}[7d:1h])
+      ) > (2 * stddev_over_time(namada_below_capacity_validators{chain_id="namada.5f5de2dd1b88cba30586420"}[7d:1h]))
+    for: 10m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Abnormal increase in below-capacity validators"
+      description: |
+        The number of validators below capacity has increased abnormally.
+        Chain ID: namada.5f5de2dd1b88cba30586420
