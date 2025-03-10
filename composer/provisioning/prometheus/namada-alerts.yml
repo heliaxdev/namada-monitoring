@@ -165,8 +165,8 @@ groups:
   - alert: AbnormalConsensusValidatorIncrease
     expr: |
       (
-        namada_consensus_validators{chain_id="$$CHAIN_ID$$"}
-        - avg_over_time(namada_consensus_validators{chain_id="$$CHAIN_ID$$"}[7d])
+        abs(namada_consensus_validators{chain_id="$$CHAIN_ID$$"}
+        - avg_over_time(namada_consensus_validators{chain_id="$$CHAIN_ID$$"}[7d]))
       ) > (2 * stddev_over_time(namada_consensus_validators{chain_id="$$CHAIN_ID$$"}[7d]))
     labels:
       severity: warning
@@ -179,8 +179,8 @@ groups:
   - alert: AbnormalInactiveValidatorIncrease
     expr: |
       (
-        namada_inactive_validators{chain_id="$$CHAIN_ID$$"}
-        - avg_over_time(namada_inactive_validators{chain_id="$$CHAIN_ID$$"}[7d])
+        abs(namada_inactive_validators{chain_id="$$CHAIN_ID$$"}
+        - avg_over_time(namada_inactive_validators{chain_id="$$CHAIN_ID$$"}[7d]))
       ) > (2 * stddev_over_time(namada_inactive_validators{chain_id="$$CHAIN_ID$$"}[7d]))
     labels:
       severity: warning
@@ -193,8 +193,8 @@ groups:
   - alert: AbnormalJailedValidatorIncrease
     expr: |
       (
-        namada_jailed_validators{chain_id="$$CHAIN_ID$$"}
-        - avg_over_time(namada_jailed_validators{chain_id="$$CHAIN_ID$$"}[7d])
+        abs(namada_jailed_validators{chain_id="$$CHAIN_ID$$"}
+        - avg_over_time(namada_jailed_validators{chain_id="$$CHAIN_ID$$"}[7d]))
       ) > (2 * stddev_over_time(namada_jailed_validators{chain_id="$$CHAIN_ID$$"}[7d]))
     labels:
       severity: critical
@@ -208,8 +208,8 @@ groups:
   - alert: AbnormalBelowThresholdValidatorIncrease
     expr: |
       (
-        namada_below_threshold_validators{chain_id="$$CHAIN_ID$$"}
-        - avg_over_time(namada_below_threshold_validators{chain_id="$$CHAIN_ID$$"}[7d])
+        abs(namada_below_threshold_validators{chain_id="$$CHAIN_ID$$"}
+        - avg_over_time(namada_below_threshold_validators{chain_id="$$CHAIN_ID$$"}[7d]))
       ) > (2 * stddev_over_time(namada_below_threshold_validators{chain_id="$$CHAIN_ID$$"}[7d]))
     labels:
       severity: warning
@@ -222,8 +222,8 @@ groups:
   - alert: AbnormalBelowCapacityValidatorIncrease
     expr: |
       (
-        namada_below_capacity_validators{chain_id="$$CHAIN_ID$$"}
-        - avg_over_time(namada_below_capacity_validators{chain_id="$$CHAIN_ID$$"}[7d])
+        abs(namada_below_capacity_validators{chain_id="$$CHAIN_ID$$"}
+        - avg_over_time(namada_below_capacity_validators{chain_id="$$CHAIN_ID$$"}[7d]))
       ) > (2 * stddev_over_time(namada_below_capacity_validators{chain_id="$$CHAIN_ID$$"}[7d]))
     labels:
       severity: warning
