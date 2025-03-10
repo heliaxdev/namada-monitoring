@@ -8,6 +8,7 @@ pub mod slashes;
 mod total_supply_native_token;
 mod transactions;
 mod transfers;
+mod validator;
 mod voting_power;
 
 use std::{collections::HashMap, net::SocketAddr};
@@ -22,6 +23,7 @@ use slashes::Slashes;
 use total_supply_native_token::TotalSupplyNativeToken;
 use transactions::Transactions;
 use transfers::Transfers;
+use validator::ValidatorState;
 use voting_power::VotingPower;
 
 use crate::{config::AppConfig, state::State};
@@ -78,6 +80,7 @@ impl MetricsExporter {
             Box::<Fees>::default() as Box<dyn MetricTrait>,
             Box::<Signatures>::default() as Box<dyn MetricTrait>,
             Box::<Slashes>::default() as Box<dyn MetricTrait>,
+            Box::<ValidatorState>::default() as Box<dyn MetricTrait>,
         ];
 
         Self::new(config, metrics)
