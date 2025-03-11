@@ -90,37 +90,17 @@ groups:
         Transaction batching has significantly increased over the last 10 minutes compared to the 7-day median. 
         Block height: {{ with query "namada_block_height{ chain_id=\"$$CHAIN_ID$$\" }" }}{{ printf "%d" (. | first | value)}}{{ end }}
         
-  - alert: HighTransactionFeesAnomaly
+  - alert: HighTransactionFees
     expr: |
-      (sum by (token) (increase(namada_fees{ chain_id="$$CHAIN_ID$$" }[10m])) / increase(namada_block_height{ chain_id="$$CHAIN_ID$$" }[10m])) 
-      > (
-          sum by (token) (avg_over_time(namada_fees{ chain_id="$$CHAIN_ID$$" }[10m])) / avg_over_time(namada_block_height{ chain_id="$$CHAIN_ID$$" }[10m]) 
-          + 2 * sum by (token) (stddev_over_time(namada_fees{ chain_id="$$CHAIN_ID$$" }[10m])) / avg_over_time(namada_block_height{ chain_id="$$CHAIN_ID$$" }[10m])
-        )
+      (sum by (token) (namada_fees{chain_id="$$CHAIN_ID$$"})) > (sum by (token) (avg_over_time(namada_fees{chain_id="$$CHAIN_ID$$"}[10m]))) +  2 * (sum by (token) (stddev_over_time(namada_fees{chain_id="$$CHAIN_ID$$"}[10m])))
     labels:
       severity: warning
     annotations:
-      summary: "Anomalous Transaction Fees for Token {{ $labels.token }}"
+      summary: "Namada transaction fees have spiked"
       description: |
-        Transaction fees per block for token {{ $labels.token }} have exceeded the expected range. 
-        Current value: {{ $value }}. 
-        Expected: < {{ with query "sum by (token) (avg_over_time(namada_fees{ chain_id=\"$$CHAIN_ID$$\" }[10m])) + 2 * sum by (token) (stddev_over_time(namada_fees{ chain_id=\"$$CHAIN_ID$$\" }[10m]))" }}{{ printf "%.2f" (. | first | value)}}{{ end }}.
-
-  - alert: HighTransactionFeesAvg
-    expr: |
-      (sum by (token) (increase(namada_fees{ chain_id="$$CHAIN_ID$$" }[10m])) / increase(namada_block_height{ chain_id="$$CHAIN_ID$$" }[10m]))
-      > (
-          scalar(sum by (token) (avg_over_time(namada_fees{ chain_id="$$CHAIN_ID$$" }[10m]))) / scalar(avg_over_time(namada_block_height{ chain_id="$$CHAIN_ID$$" }[10m]))
-          + 2 * scalar(sum by (token) (stddev_over_time(namada_fees{ chain_id="$$CHAIN_ID$$" }[10m]))) / scalar(avg_over_time(namada_block_height{ chain_id="$$CHAIN_ID$$" }[10m]))
-        )
-    labels:
-      severity: warning
-    annotations:
-      summary: "Unusual Transaction Fees for Token {{ $labels.token }}"
-      description: |
-        Transaction fees per block for token {{ $labels.token }} are unusually high. 
-        Current: {{ $value }} NAM. 
-        Expected: < {{ with query "scalar(sum by (token) (avg_over_time(namada_fees{ chain_id=\"$$CHAIN_ID$$\" }[10m]))) + 2 * scalar(sum by (token) (stddev_over_time(namada_fees{ chain_id=\"$$CHAIN_ID$$\" }[10m])))" }}{{ printf "%.2f" (. | first | value)}}{{ end }} NAM.
+        The transaction fees in Namada have increased significantly beyond normal levels.
+        Current fees: {{ with query "sum by (token) (namada_fees{chain_id=\"$$CHAIN_ID$$\"})" }}{{ printf "%.2f" (. | first | value) }}{{ end }}
+        Expected normal range (10-minute avg + 2x std deviation): {{ with query "(sum by (token) (avg_over_time(namada_fees{chain_id=\"$$CHAIN_ID$$\"}[10m]))) + 2 * (sum by (token) (stddev_over_time(namada_fees{chain_id=\"$$CHAIN_ID$$\"}[10m])))" }}{{ printf "%.2f" (. | first | value) }}{{ end }}
 
   - alert: AbnormalInnerTransactionFailureRate
     expr: |
@@ -138,9 +118,9 @@ groups:
 
   - alert: WhaleTransactionDetected
     expr: |
-        transfer_amount{chain_id="$$CHAIN_ID$$"}
-        > avg_over_time(transfer_amount{chain_id="$$CHAIN_ID$$"}[7d]) 
-        + 2 * stddev_over_time(transfer_amount{chain_id="$$CHAIN_ID$$"}[7d])
+        namada_transfer_amount{chain_id="$$CHAIN_ID$$"}
+        > avg_over_time(namada_transfer_amount{chain_id="$$CHAIN_ID$$"}[7d]) 
+        + 2 * stddev_over_time(namada_transfer_amount{chain_id="$$CHAIN_ID$$"}[7d])
     labels:
       severity: warning
     annotations:
