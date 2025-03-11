@@ -4,7 +4,6 @@ use crate::shared::namada::{Address, Block, Height, Transfer, Validator};
 
 #[derive(Debug, Clone)]
 pub struct State {
-    //checksums: Checksums,
     block: Block,
     max_block_time_estimate: u64,
     total_supply_native: u64,
@@ -12,13 +11,11 @@ pub struct State {
     validators: Vec<Validator>,
     future_bonds: u64,
     future_unbonds: u64,
-    // peers: Vec<PeerInfo>,
 }
 
 impl State {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        //checksums: Checksums,
         block: Block,
         native_token: Address,
         max_block_time_estimate: u64,
@@ -26,10 +23,8 @@ impl State {
         validators: Vec<Validator>,
         future_bonds: u64,
         future_unbonds: u64,
-        // peers: Vec<PeerInfo>,
     ) -> Self {
         Self {
-            //checksums,
             block,
             native_token,
             max_block_time_estimate,
@@ -37,7 +32,6 @@ impl State {
             validators,
             future_bonds,
             future_unbonds,
-            // peers,
         }
     }
 
@@ -56,10 +50,6 @@ impl State {
     pub fn get_last_block(&self) -> &Block {
         &self.block
     }
-
-    // pub fn get_all_peers(&self) -> Vec<PeerInfo> {
-    //     self.peers.clone()
-    // }
 
     pub fn get_total_supply_for(&self, token: &Address) -> Option<u64> {
         if token == &self.native_token {
@@ -142,5 +132,8 @@ impl State {
 
     pub fn get_all_transfers(&self) -> Vec<Transfer> {
         self.block.get_all_transfers()
+    }
+    pub fn get_validators(&self) -> &Vec<Validator> {
+        &self.validators
     }
 }

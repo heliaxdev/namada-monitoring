@@ -5,11 +5,9 @@ services:
     restart: unless-stopped
     entrypoint: |
       /bin/sh -c '
-      echo "Running preparation script..." "$@"
+      echo "Running preparation script..."
       cat /etc/prometheus/namada-alerts.yml | sed "s/[$][$]CHAIN_ID[$][$]/$CHAIN_ID/g" > /etc/prometheus/namada-alerts-$CHAIN_ID.yml
       cat /etc/prometheus/prometheus.yml | sed "s/[$][$]CHAIN_ID[$][$]/$CHAIN_ID/g" > /etc/prometheus/prometheus-$CHAIN_ID.yml
-
-      tail -n 23472 /etc/prometheus/namada-alerts-$CHAIN_ID.yml /etc/prometheus/prometheus-$CHAIN_ID.yml
       exec /bin/prometheus --config.file=/etc/prometheus/prometheus-$CHAIN_ID.yml --storage.tsdb.retention.time=30d
       '
     ports:
