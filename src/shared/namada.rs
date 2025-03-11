@@ -505,7 +505,7 @@ impl BlockResult {
                     None
                 }
             })
-            .find(|attributes| attributes.hash.eq(tx_hash))
+            .find(|attributes| attributes.hash.to_uppercase().eq(&tx_hash.to_uppercase()))
             .map(|attributes| attributes.clone().code)
             .map(TransactionExitStatus::from);
 
