@@ -80,10 +80,7 @@ impl MetricTrait for Transactions {
                 let inner_kind = inner.kind.to_string();
                 let failed = !inner.was_applied;
                 self.transaction_kind
-                    .with_label_values(&[
-                        &inner_kind,
-                        &failed.to_string(),
-                    ])
+                    .with_label_values(&[&inner_kind, &failed.to_string()])
                     .inc();
             }
         }
@@ -102,9 +99,8 @@ impl Default for Transactions {
 
         let transaction_kind_opts =
             Opts::new("transaction_kind", "Transaction kind count per epoch");
-        let transaction_kind =
-            IntCounterVec::new(transaction_kind_opts, &["kind", "failed"])
-                .expect("unable to create int counter for transaction kinds");
+        let transaction_kind = IntCounterVec::new(transaction_kind_opts, &["kind", "failed"])
+            .expect("unable to create int counter for transaction kinds");
 
         Self {
             transaction_batch_size,
