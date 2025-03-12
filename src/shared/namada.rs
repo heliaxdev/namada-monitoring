@@ -278,7 +278,7 @@ impl From<TxResult<String>> for BatchResults {
                 .0
                 .iter()
                 .fold(BTreeMap::default(), |mut acc, (tx_hash, result)| {
-                    let tx_id = tx_hash.to_string();
+                    let tx_id = tx_hash.to_string().to_uppercase();
                     let result = if let Ok(result) = result {
                         result
                             .vps_result
@@ -495,20 +495,20 @@ pub struct Transfer {
 
 impl BlockResult {
     pub fn is_wrapper_tx_applied(&self, tx_hash: &str) -> TransactionExitStatus {
+        let tx_hash = tx_hash.to_uppercase();
         let exit_status = self
             .end_events
             .iter()
             .filter_map(|event| {
                 if let Some(TxAttributesType::TxApplied(data)) = &event.attributes {
-                    Some(data.clone())
+                    Some(data)
                 } else {
                     None
                 }
             })
-            .find(|attributes| attributes.hash.eq(tx_hash))
+            .find(|attributes| attributes.hash.eq(&tx_hash))
             .map(|attributes| attributes.clone().code)
             .map(TransactionExitStatus::from);
-
         exit_status.unwrap_or(TransactionExitStatus::Rejected)
     }
 
@@ -659,7 +659,7 @@ impl TxAttributesType {
                     .to_owned(),
                 hash: attributes
                     .get("hash")
-                    .map(|hash| hash.to_lowercase())
+                    .map(|hash| hash.to_uppercase())
                     .unwrap()
                     .to_owned(),
                 height: attributes
