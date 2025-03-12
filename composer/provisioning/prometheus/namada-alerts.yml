@@ -118,14 +118,15 @@ groups:
 
   - alert: WhaleTransactionDetected
     expr: |
-        increase(namada_transfer_amount{chain_id="$$CHAIN_ID$$"}[1m]) > increase(namada_transfer_amount{chain_id="$$CHAIN_ID$$"}[1w])
+        increase(namada_transfer_amount{chain_id="$$CHAIN_ID$$"}[1m]) > 
+        avg_over_time(increase(namada_transfer_amount{chain_id="$$CHAIN_ID$$"}[1w])[1w:1m])
     labels:
       severity: warning
     annotations:
       summary: "Potential Whale Detected in {{ $labels.token }}"
       description: |
-        Token {{ $labels.token }} experienced a large transfer in last minute ({{ with query "increase(namada_transfer_amount{chain_id=\"$$CHAIN_ID$$\"}[1m])"} " }}{{ printf "%.0f" (. | first | value) }}{{ end }})
-        It excedes the ammount trasfered in the last week.
+        Token {{ $labels.token }} experienced a large transfer in last minute ({{ with query "increase(namada_transfer_amount{chain_id=\"$$CHAIN_ID$$\"}[1m])" }}{{ printf "%.0f" (. | first | value) }}{{ end }})
+        The amount is unusually high compared to the typical increases over the past week.
         Transfer Amount: {{ $value }} {{ $labels.token }}
         Block height: {{ with query "namada_block_height{chain_id=\"$$CHAIN_ID$$\"} " }}{{ printf "%.0f" (. | first | value) }}{{ end }}
 
