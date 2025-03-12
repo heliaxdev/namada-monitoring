@@ -531,6 +531,7 @@ impl BlockResult {
         wrapper_hash: &str,
         inner_hash: &str,
     ) -> TransactionExitStatus {
+        let wrapper_hash = wrapper_hash.to_uppercase();
         let exit_status = self
             .end_events
             .iter()
@@ -541,7 +542,7 @@ impl BlockResult {
                     None
                 }
             })
-            .find(|attributes| attributes.hash.eq(wrapper_hash))
+            .find(|attributes| attributes.hash.eq(&wrapper_hash))
             .map(|attributes| attributes.batch.is_successful(inner_hash))
             .map(|successful| match successful {
                 true => TransactionExitStatus::Applied,
