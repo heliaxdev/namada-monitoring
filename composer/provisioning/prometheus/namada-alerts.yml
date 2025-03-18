@@ -141,7 +141,7 @@ groups:
         Slashing detected.
         Block height: {{ with query "namada_block_height{chain_id=\"$$CHAIN_ID$$\"}" }}{{ printf "%.0f" (. | first | value) }}{{ end }}
        
-  - alert: AbnormalConsensusValidatorIncrease
+  - alert: AbnormalConsensusValidatorChange
     expr: |
       (
         abs(namada_consensus_validators{chain_id="$$CHAIN_ID$$"}
@@ -150,16 +150,16 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "Abnormal increase in consensus validators"
+      summary: "Abnormal increase/decrease in consensus validators"
       description: |
-        The number of validators in the consensus state has increased abnormally.
+        The number of validators in the consensus state has increased/decreased abnormally.
         Block height: {{ with query "namada_block_height{chain_id=\"$$CHAIN_ID$$\"}" }}{{ printf "%.0f" (. | first | value) }}{{ end }}
 
   - alert: AbnormalInactiveValidatorIncrease
     expr: |
       (
-        abs(namada_inactive_validators{chain_id="$$CHAIN_ID$$"}
-        - avg_over_time(namada_inactive_validators{chain_id="$$CHAIN_ID$$"}[7d]))
+        namada_inactive_validators{chain_id="$$CHAIN_ID$$"}
+        - avg_over_time(namada_inactive_validators{chain_id="$$CHAIN_ID$$"}[7d])
       ) > (2 * stddev_over_time(namada_inactive_validators{chain_id="$$CHAIN_ID$$"}[7d]))
     labels:
       severity: warning
@@ -172,8 +172,8 @@ groups:
   - alert: AbnormalJailedValidatorIncrease
     expr: |
       (
-        abs(namada_jailed_validators{chain_id="$$CHAIN_ID$$"}
-        - avg_over_time(namada_jailed_validators{chain_id="$$CHAIN_ID$$"}[7d]))
+        namada_jailed_validators{chain_id="$$CHAIN_ID$$"}
+        - avg_over_time(namada_jailed_validators{chain_id="$$CHAIN_ID$$"}[7d])
       ) > (2 * stddev_over_time(namada_jailed_validators{chain_id="$$CHAIN_ID$$"}[7d]))
     labels:
       severity: critical
@@ -187,8 +187,8 @@ groups:
   - alert: AbnormalBelowThresholdValidatorIncrease
     expr: |
       (
-        abs(namada_below_threshold_validators{chain_id="$$CHAIN_ID$$"}
-        - avg_over_time(namada_below_threshold_validators{chain_id="$$CHAIN_ID$$"}[7d]))
+        namada_below_threshold_validators{chain_id="$$CHAIN_ID$$"}
+        - avg_over_time(namada_below_threshold_validators{chain_id="$$CHAIN_ID$$"}[7d])
       ) > (2 * stddev_over_time(namada_below_threshold_validators{chain_id="$$CHAIN_ID$$"}[7d]))
     labels:
       severity: warning
@@ -201,8 +201,8 @@ groups:
   - alert: AbnormalBelowCapacityValidatorIncrease
     expr: |
       (
-        abs(namada_below_capacity_validators{chain_id="$$CHAIN_ID$$"}
-        - avg_over_time(namada_below_capacity_validators{chain_id="$$CHAIN_ID$$"}[7d]))
+        namada_below_capacity_validators{chain_id="$$CHAIN_ID$$"}
+        - avg_over_time(namada_below_capacity_validators{chain_id="$$CHAIN_ID$$"}[7d])
       ) > (2 * stddev_over_time(namada_below_capacity_validators{chain_id="$$CHAIN_ID$$"}[7d]))
     labels:
       severity: warning
