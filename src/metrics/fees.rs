@@ -1,16 +1,16 @@
 use crate::state::State;
 /// ## Fees Metric. (fees)
-/// This metric tracks the total transaction fees paid per block and per token. It helps monitor the gas costs of transactions on
+/// This metric tracks the total transaction fees paid per token. It helps monitor the gas costs of transactions on
 /// the network, providing insight into network congestion and transaction fee trends.
 /// * The metric is a counter, meaning it only increases over time.
-/// * Fees are labeled by the block height and the token used for gas payments.
+/// * Fees are labeled by the token used for gas payments.
 
 /// ### Example
 /// ```
-/// # HELP namada_fees Total fees paid per block and per token
+/// # HELP namada_fees Total fees paid per token over time
 /// # TYPE namada_fees counter
-/// namada_fees{height="777604",token="tnam1q9gr66cvu4hrzm0sd5kmlnjje82gs3xlfg3v6nu7",chain_id="housefire-alpaca.cc0d3e0c033be"} 0.5845009999999999
-/// namada_fees{height="777605",token="tnam1q9gr66cvu4hrzm0sd5kmlnjje82gs3xlfg3v6nu7",chain_id="housefire-alpaca.cc0d3e0c033be"} 0.154409
+/// namada_fees{token="tnam1q9gr66cvu4hrzm0sd5kmlnjje82gs3xlfg3v6nu7",chain_id="housefire-alpaca.cc0d3e0c033be"} 0.5845009999999999
+/// namada_fees{token="tnam1q9gr66cvu4hrzm0sd5kmlnjje82gs3xlfg3v6nu7",chain_id="housefire-alpaca.cc0d3e0c033be"} 0.154409
 /// ```
 use prometheus_exporter::prometheus::core::{AtomicF64, GenericCounterVec};
 use prometheus_exporter::prometheus::{CounterVec, Opts, Registry};
@@ -33,9 +33,6 @@ impl MetricTrait for Fees {
     }
 
     fn update(&self, pre_state: &State, post_state: &State) {
-        if pre_state.get_epoch() != post_state.get_epoch() {
-            self.reset(post_state);
-        }
         let block = post_state.get_last_block();
         for tx in &block.transactions {
             let amount_per_gas = tx.fee.amount_per_gas_unit.parse::<f64>();
