@@ -6,7 +6,7 @@ groups:
     labels:
       severity: critical
     annotations:
-      summary: "Namada block height is not increasing"
+      summary: "Namada block height is not increasing - $$CHAIN_ID$$"
       description: |
           Validators appear to be stalled as the block height has not increased for 1 minute! 
           Last recorded block height: {{ with query "namada_block_height{chain_id=\"$$CHAIN_ID$$\"}" }} {{ printf "%.0f" (. | first | value)}}{{ end }}
@@ -32,7 +32,7 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "Namada block processing time is abnormal"
+      summary: "Namada block processing time is abnormal - $$CHAIN_ID$$"
       description: |
         The average block processing time in the last 5 minutes is significantly higher than normal. 
         Current 5-minute average block time: {{ with query "(avg_over_time(namada_block_time_sum{chain_id=\"$$CHAIN_ID$$\"}[5m]) / avg_over_time(namada_block_time_count{chain_id=\"$$CHAIN_ID$$\"}[5m]))" }}{{ printf "%ds" (. | first | value) }}{{ end }}
@@ -44,7 +44,7 @@ groups:
     labels:
       severity: critical
     annotations:
-      summary: "Voting power is too concentrated"
+      summary: "Voting power is too concentrated - $$CHAIN_ID$$"
       description: |
         The number of validators needed for 1/3 of the voting power is greater than 60% of the number of validators neededed for 2/3 voting power. 
         Block height: {{ with query "namada_block_height{ chain_id=\"$$CHAIN_ID$$\" }" }}{{ printf "%.0f" (. | first | value)}}{{ end }}
@@ -54,7 +54,7 @@ groups:
     labels:
       severity: critical
     annotations:
-      summary: "Very low validator participation detected"
+      summary: "Very low validator participation detected - $$CHAIN_ID$$"
       description: |
         The number of validators needed for 1/3 or 2/3 consensus is at zero, which indicates a potential network failure. 
         Block height: {{ with query "namada_block_height{ chain_id=\"$$CHAIN_ID$$\" }" }}{{ printf "%.0f" (. | first | value)}}{{ end }}
@@ -64,7 +64,7 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "Unusual increase in bonding activity"
+      summary: "Unusual increase in bonding activity - $$CHAIN_ID$$"
       description: |
         Bonding per epoch has increased significantly over the last 10 minutes compared to the average of last 7 days. 
         Block height: {{ with query "namada_block_height{ chain_id=\"$$CHAIN_ID$$\" }" }}{{ printf "%.0f" (. | first | value)}}{{ end }}
@@ -74,7 +74,7 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "Unusual increase in unbonding activity"
+      summary: "Unusual increase in unbonding activity - $$CHAIN_ID$$"
       description: |
         Unbonding per epoch has increased significantly over the last 10 minutes compared to the average of last 7 days.
         Block height: {{ with query "namada_block_height{ chain_id=\"$$CHAIN_ID$$\" }" }}{{ printf "%.0f" (. | first | value)}}{{ end }}
@@ -85,22 +85,22 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "Spike in transaction batch size"
+      summary: "Spike in transaction batch size - $$CHAIN_ID$$"
       description: |
         Transaction batching has significantly increased over the last 10 minutes compared to the 7-day median. 
         Block height: {{ with query "namada_block_height{ chain_id=\"$$CHAIN_ID$$\" }" }}{{ printf "%.0f" (. | first | value)}}{{ end }}
         
   - alert: HighTransactionFees
     expr: |
-      (sum by (token) (namada_fees{chain_id="$$CHAIN_ID$$"})) > (sum by (token) (avg_over_time(namada_fees{chain_id="$$CHAIN_ID$$"}[10m]))) +  2 * (sum by (token) (stddev_over_time(namada_fees{chain_id="$$CHAIN_ID$$"}[10m])))
+      (sum by (token) (namada_fees{chain_id="$$CHAIN_ID$$"})) > (sum by (token) (avg_over_time(namada_fees{chain_id="$$CHAIN_ID$$"}[7d]))) +  2 * (sum by (token) (stddev_over_time(namada_fees{chain_id="$$CHAIN_ID$$"}[7d])))
     labels:
       severity: warning
     annotations:
-      summary: "Namada transaction fees have spiked"
+      summary: "Namada transaction fees have spiked - $$CHAIN_ID$$"
       description: |
         The transaction fees in Namada have increased significantly beyond normal levels.
         Current fees: {{ with query "sum by (token) (namada_fees{chain_id=\"$$CHAIN_ID$$\"})" }}{{ printf "%.2f" (. | first | value) }}{{ end }}
-        Expected normal range (10-minute avg + 2x std deviation): {{ with query "(sum by (token) (avg_over_time(namada_fees{chain_id=\"$$CHAIN_ID$$\"}[10m]))) + 2 * (sum by (token) (stddev_over_time(namada_fees{chain_id=\"$$CHAIN_ID$$\"}[10m])))" }}{{ printf "%.2f" (. | first | value) }}{{ end }}
+        Expected normal range (1-week avg + 2x std deviation): {{ with query "(sum by (token) (avg_over_time(namada_fees{chain_id=\"$$CHAIN_ID$$\"}[7d]))) + 2 * (sum by (token) (stddev_over_time(namada_fees{chain_id=\"$$CHAIN_ID$$\"}[7d])))" }}{{ printf "%.2f" (. | first | value) }}{{ end }}
 
   - alert: AbnormalInnerTransactionFailureRate
     expr: |
@@ -110,7 +110,7 @@ groups:
     labels:
       severity: critical
     annotations:
-      summary: "Unusual spike in inner transaction failures"
+      summary: "Unusual spike in inner transaction failures - $$CHAIN_ID$$"
       description: |
         The failure rate of inner transactions has spiked abnormally compared against the median in the last 7 days.
         Block height: {{ with query "namada_block_height{chain_id=\"$$CHAIN_ID$$\"}" }}{{ printf "%.0f" (. | first | value) }}{{ end }}
@@ -123,7 +123,7 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "Potential Whale Detected in {{ $labels.token }}"
+      summary: "Potential Whale Detected in {{ $labels.token }} - $$CHAIN_ID$$"
       description: |
         Token {{ $labels.token }} experienced a large transfer in last minute ({{ with query "increase(namada_transfer_amount{chain_id=\"$$CHAIN_ID$$\"}[1m])" }}{{ printf "%.0f" (. | first | value) }}{{ end }})
         The amount is unusually high compared to the typical increases over the past week.
@@ -136,7 +136,7 @@ groups:
     labels:
       severity: critical
     annotations:
-      summary: "Unusual number of validator slashes"
+      summary: "Unusual number of validator slashes - $$CHAIN_ID$$"
       description: |
         Slashing detected.
         Block height: {{ with query "namada_block_height{chain_id=\"$$CHAIN_ID$$\"}" }}{{ printf "%.0f" (. | first | value) }}{{ end }}
@@ -150,7 +150,7 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "Abnormal increase/decrease in consensus validators"
+      summary: "Abnormal increase/decrease in consensus validators - $$CHAIN_ID$$"
       description: |
         The number of validators in the consensus state has increased/decreased abnormally.
         Block height: {{ with query "namada_block_height{chain_id=\"$$CHAIN_ID$$\"}" }}{{ printf "%.0f" (. | first | value) }}{{ end }}
@@ -164,7 +164,7 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "Abnormal increase in inactive validators"
+      summary: "Abnormal increase in inactive validators - $$CHAIN_ID$$"
       description: |
         The number of inactive validators has increased abnormally.
         Block height: {{ with query "namada_block_height{chain_id=\"$$CHAIN_ID$$\"}" }}{{ printf "%.0f" (. | first | value) }}{{ end }}
@@ -178,7 +178,7 @@ groups:
     labels:
       severity: critical
     annotations:
-      summary: "Abnormal increase in jailed validators"
+      summary: "Abnormal increase in jailed validators - $$CHAIN_ID$$"
       description: |
         The number of jailed validators has increased abnormally.
         Block height: {{ with query "namada_block_height{chain_id=\"$$CHAIN_ID$$\"}" }}{{ printf "%.0f" (. | first | value) }}{{ end }}
@@ -193,7 +193,7 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "Abnormal increase in below-threshold validators"
+      summary: "Abnormal increase in below-threshold validators - $$CHAIN_ID$$"
       description: |
         The number of validators below the threshold has increased abnormally.
         Block height: {{ with query "namada_block_height{chain_id=\"$$CHAIN_ID$$\"}" }}{{ printf "%.0f" (. | first | value) }}{{ end }}
@@ -207,7 +207,7 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "Abnormal increase in below-capacity validators"
+      summary: "Abnormal increase in below-capacity validators - $$CHAIN_ID$$"
       description: |
         The number of validators below capacity has increased abnormally.
         Block height: {{ with query "namada_block_height{chain_id=\"$$CHAIN_ID$$\"}" }}{{ printf "%.0f" (. | first | value) }}{{ end }}
