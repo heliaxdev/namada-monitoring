@@ -12,14 +12,13 @@ use crate::state::State;
 /// namada_fees{token="tnam1q9gr66cvu4hrzm0sd5kmlnjje82gs3xlfg3v6nu7",chain_id="housefire-alpaca.cc0d3e0c033be"} 0.5845009999999999
 /// namada_fees{token="tnam1q9gr66cvu4hrzm0sd5kmlnjje82gs3xlfg3v6nu7",chain_id="housefire-alpaca.cc0d3e0c033be"} 0.154409
 /// ```
-use prometheus_exporter::prometheus::core::{AtomicF64, GenericCounterVec};
-use prometheus_exporter::prometheus::{CounterVec, Opts, Registry};
+use prometheus_exporter::prometheus::{GaugeVec, Registry, Opts};
 
 use super::MetricTrait;
 
 pub struct Fees {
-    /// fees counter
-    fees: GenericCounterVec<AtomicF64>,
+    /// fees counters
+    fees: GaugeVec,
 }
 
 impl MetricTrait for Fees {
@@ -28,12 +27,8 @@ impl MetricTrait for Fees {
         Ok(())
     }
 
-    fn reset(&self, _state: &State) {
-        self.fees.reset();
-    }
-
-    fn update(&self, pre_state: &State, post_state: &State) {
-        let block = post_state.get_last_block();
+    fn reset(&self, state: &State) {
+        let block = state.get_last_block();
         for tx in &block.transactions {
             let amount_per_gas = tx.fee.amount_per_gas_unit.parse::<f64>();
             let gas_limit = tx.fee.gas.parse::<f64>();
@@ -45,17 +40,20 @@ impl MetricTrait for Fees {
 
             self.fees
                 .with_label_values(&[&tx.fee.gas_token])
-                .inc_by(fee);
+                .set(fee);
         }
+    }
+
+    fn update(&self, _pre_state: &State, post_state: &State) {
+        self.reset(post_state); 
     }
 }
 
 impl Default for Fees {
     fn default() -> Self {
-        let fees_opts = Opts::new("fees", "Total fees paid per block and per token");
-        let fees = CounterVec::new(fees_opts, &["token"])
-            .expect("unable to create int counter for transaction kinds");
-
+        let fees_opts = Opts::new("fees", "Total fees paid per token over time");
+        let fees = GaugeVec::new(fees_opts, &["token"])
+            .expect("unable to create gauge vector for transaction fees");
         Self { fees }
     }
 }
