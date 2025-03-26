@@ -1,4 +1,7 @@
 parser {
-  include = ["composer/prometheus/.*alert.*.yaml"]
-  relaxed = [".*"]
+  include = [".*alert.*.yaml"]
 }
+
+ci {
+  include = [".*alert.*.yaml"]
+} 
