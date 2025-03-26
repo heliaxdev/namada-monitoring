@@ -24,5 +24,4 @@ jobs:
         with:
           token: ${{ github.token }}
           workdir: 'composer/provisioning/prometheus'
-          requireOwner: 'false'
           config: '.pint.hcl'
