@@ -23,6 +23,6 @@ jobs:
         uses: prymitive/pint-action@v1
         with:
           token: ${{ github.token }}
-          workdir: 'composer/provisioning/prometheus/namada-alerts.yml'
+          workdir: 'composer/provisioning/prometheus'
           requireOwner: 'false'
           config: '.pint.hcl'
