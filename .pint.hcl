@@ -1,3 +1,3 @@
 parser {
-  include = [".*alert.*.yaml"]
+  include = [".*alert.*.(yaml|yml)"]
 }
