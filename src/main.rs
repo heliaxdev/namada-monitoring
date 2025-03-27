@@ -68,7 +68,7 @@ async fn get_state_from_rpc(rpc: &Rpc, height: u64) -> anyhow::Result<State> {
         .await
         .into_retry_error()?;
     let validators = rpc.query_validators(epoch).await.into_retry_error()?;
-    // let (id, peers) = rpc.query_peers().await.into_retry_error()?;
+    let slashes_count = rpc.query_count_slashes_before(height).await.into_retry_error()? as u64;
     Ok(State::new(
         block,
         native_token,
@@ -77,7 +77,7 @@ async fn get_state_from_rpc(rpc: &Rpc, height: u64) -> anyhow::Result<State> {
         validators,
         future_bonds,
         future_unbonds,
-        // peers,
+        slashes_count,
     ))
 }
 

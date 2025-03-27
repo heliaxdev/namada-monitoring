@@ -2,7 +2,7 @@ groups:
 - name: namada-validator-alerts
   rules:
   - alert: NamadaBlockHeightStalled
-    expr: increase(namada_block_height{ chain_id="$$CHAIN_ID$$" }[1m]) == 0
+    expr: rate(namada_block_height{ chain_id="$$CHAIN_ID$$" }[1m]) == 0
     labels:
       severity: critical
     annotations:
@@ -81,7 +81,7 @@ groups:
 
   - alert: NamadaTransactionBatchSpike
     expr: |
-      rate(namada_transaction_batch_size_count{ chain_id="$$CHAIN_ID$$" }[10m]) > (2 * quantile(0.50, rate(namada_transaction_batch_size_count[7d])))
+      rate(namada_transaction_batch_size_count{ chain_id="$$CHAIN_ID$$" }[10m]) > (2 * quantile(0.50, rate(namada_transaction_batch_size_count{ chain_id="$$CHAIN_ID$$" }[7d])))
     labels:
       severity: warning
     annotations:
@@ -106,9 +106,9 @@ groups:
 
   - alert: AbnormalInnerTransactionFailureRate
     expr: |
-      (rate(namada_transaction_kind{chain_id="$$CHAIN_ID$$", failed="true"}[10m]) / rate(namada_transaction_kind{ chain_id="$$CHAIN_ID$$" }[10m]))
+      (rate(namada_transaction_kind{chain_id="$$CHAIN_ID$$", failed="true"}[10m]) / rate(namada_transaction_kind{chain_id="$$CHAIN_ID$$"}[10m]))
       >
-      (2 * quantile(0.50, rate(namada_transaction_kind{chain_id="$$CHAIN_ID$$", failed="true"}[7d:]) / rate(namada_transaction_kind{chain_id="$$CHAIN_ID$$"}[7d:])))
+      (2 * quantile(0.50, rate(namada_transaction_kind{chain_id="$$CHAIN_ID$$", failed="true"}[7d:]) / rate(namada_transaction_kind{chain_id="$$CHAIN_ID$$"}[7d:])) by (chain_id))
     labels:
       severity: critical
     annotations:
@@ -120,14 +120,14 @@ groups:
 
   - alert: WhaleTransactionDetected
     expr: |
-        increase(namada_transfer_amount{chain_id="$$CHAIN_ID$$"}[1m]) > 
-        avg_over_time(increase(namada_transfer_amount{chain_id="$$CHAIN_ID$$"}[1w])[1w:1m])
+        rate(namada_transfer_amount{chain_id="$$CHAIN_ID$$"}[1m]) > 
+        avg_over_time(rate(namada_transfer_amount{chain_id="$$CHAIN_ID$$"}[1w])[1w:1m])
     labels:
       severity: warning
     annotations:
       summary: "Potential Whale Detected in {{ $labels.token }}"
       description: |
-        Token {{ $labels.token }} experienced a large transfer in last minute ({{ with query "increase(namada_transfer_amount{chain_id=\"$$CHAIN_ID$$\"}[1m])" }}{{ printf "%.0f" (. | first | value) }}{{ end }})
+        Token {{ $labels.token }} experienced a large transfer in last minute ({{ with query "rate(namada_transfer_amount{chain_id=\"$$CHAIN_ID$$\"}[1m])" }}{{ printf "%.0f" (. | first | value) }}{{ end }})
         The amount is unusually high compared to the typical increases over the past week.
         Transfer Amount: {{ $value }} {{ $labels.token }}
         Block height: {{ with query "namada_block_height{chain_id=\"$$CHAIN_ID$$\"} " }}{{ printf "%.0f" (. | first | value) }}{{ end }}
