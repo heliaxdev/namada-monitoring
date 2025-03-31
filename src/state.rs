@@ -1,6 +1,6 @@
 use anyhow::anyhow;
 
-use crate::{shared::namada::{Address, Block, Height, Transfer, Validator}};
+use crate::shared::namada::{Address, Block, Height, Transfer, Validator};
 
 #[derive(Debug, Clone)]
 pub struct State {
@@ -11,7 +11,6 @@ pub struct State {
     validators: Vec<Validator>,
     future_bonds: u64,
     future_unbonds: u64,
-    slashes_count: u64,
 }
 
 impl State {
@@ -24,7 +23,6 @@ impl State {
         validators: Vec<Validator>,
         future_bonds: u64,
         future_unbonds: u64,
-        slashes_count: u64,
     ) -> Self {
         Self {
             block,
@@ -34,7 +32,6 @@ impl State {
             validators,
             future_bonds,
             future_unbonds,
-            slashes_count,
         }
     }
 
@@ -125,9 +122,8 @@ impl State {
             .unwrap_or_default()
     }
 
-    pub fn get_slashes(&self) -> u64 {       
-        self.block.block.evidence.iter().len() as u64 
-        //self.slashes_count
+    pub fn get_slashes(&self) -> u64 {
+        self.block.block.evidence.iter().len() as u64
     }
 
     pub fn get_epoch(&self) -> u64 {

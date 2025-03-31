@@ -45,10 +45,17 @@ impl MetricTrait for Fees {
                 (Ok(amount_per_gas), Ok(gas_limit)) => amount_per_gas * gas_limit,
                 _ => continue,
             };
-
+ 
             self.fees
                 .with_label_values(&[&tx.fee.gas_token])
                 .inc_by(fee);
+
+            tracing::debug!(
+                "Transaction fee: {} {}",
+                fee,
+                tx.fee.gas_token
+            );
+               
         }
     }
 }

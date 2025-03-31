@@ -8,11 +8,10 @@ use namada_sdk::{
     state::{BlockHeight, Epoch as NamadaEpoch, Key},
     tendermint::node::Id,
     tendermint_rpc::Client,
-//    tendermint_rpc::{endpoint::net_info::PeerInfo, Url},
 };
 use std::{future::Future, str::FromStr};
-use tendermint_rpc::{endpoint::net_info::PeerInfo, HttpClient, Url, HttpClientUrl};
 use tendermint_rpc::client::CompatMode;
+use tendermint_rpc::{endpoint::net_info::PeerInfo, HttpClient, HttpClientUrl, Url};
 
 use crate::shared::{
     checksums::Checksums,
@@ -120,7 +119,6 @@ impl Rpc {
             .context("Should be able to get epoch")
     }
 
-
     pub async fn query_lastest_height(&self) -> anyhow::Result<u64> {
         let futures = self
             .clients
@@ -141,18 +139,16 @@ impl Rpc {
         let futures = self
             .clients
             .iter()
-            .map(|client| {
-                Box::pin(pos_query.slashes(client))
-            })
+            .map(|client| Box::pin(pos_query.slashes(client)))
             .collect();
 
         let res = self.concurrent_requests(futures).await;
 
         res.map(|response| {
             response
-            .into_iter()
-            .filter(|(_, slashes)| slashes.iter().any(|slash| slash.block_height < height))
-            .count()
+                .into_iter()
+                .filter(|(_, slashes)| slashes.iter().any(|slash| slash.block_height < height))
+                .count()
         })
         .context("Should be able to query for block")
     }
@@ -172,39 +168,27 @@ impl Rpc {
             .collect();
 
 
+        let block_height = namada_sdk::tendermint::block::Height::try_from(block_height).unwrap();
+
         let events_res = self.concurrent_requests(events_futures).await;
         let events = events_res.map(BlockResult::from).context(format!(
             "Should be able to query for block events for height: {}",
             block_height
         ))?;
 
-        let block_height = namada_sdk::tendermint::block::Height::try_from(block_height).unwrap();
-        let events_futures = self
-        .clients
-        .iter()
-        .map(|client| client.block_results(block_height))
-        .collect();
-
-
-    let events_res = self.concurrent_requests(events_futures).await;
-    let events = events_res.map(BlockResult::from).context(format!(
-        "Should be able to query for block events for height: {}",
-        block_height
-    ))?;
-
-        let block_height = namada_sdk::tendermint::block::Height::try_from(block_height).unwrap();
-
         let block_futures = self
             .clients
             .iter()
-            .map(|client| 
-                client.block(block_height))
+            .map(|client| client.block(block_height))
             .collect();
 
         let block_res = self.concurrent_requests(block_futures).await;
-        block_res.map(|response|          
-            Block::from(response, events, checksums, epoch))
-        .context(format!("Should be able to query for block for height: {}",block_height))
+        block_res
+            .map(|response| Block::from(response, events, checksums, epoch))
+            .context(format!(
+                "Should be able to query for block for height: {}",
+                block_height
+            ))
     }
 
     pub async fn query_validator_state(
@@ -388,7 +372,7 @@ impl Rpc {
             })
     }
 
-    async fn concurrent_requests<T, E: std::fmt::Debug>(
+    async fn concurrent_requests<T, E>(
         &self,
         futures: Vec<impl Future<Output = Result<T, E>> + Unpin>,
     ) -> Option<T> {
@@ -397,21 +381,18 @@ impl Rpc {
             .map(|(_idx, value)| value)
     }
 
-    async fn concurrent_requests_idx<T, E: std::fmt::Debug>(
+    async fn concurrent_requests_idx<T, E>(
         &self,
         futures: Vec<impl Future<Output = Result<T, E>> + Unpin>,
     ) -> Option<(usize, T)> {
-        let mut futures: Vec<_> = futures;
+        let mut futures = futures;
         while !futures.is_empty() {
             let (result, index, remaining) = futures::future::select_all(futures).await;
             match result {
                 Ok(value) => return Some((index, value)),
-                Err(_err) => futures = remaining,
+                Err(_) => futures = remaining,
             }
         }
         None
     }
-
-
-
 }
