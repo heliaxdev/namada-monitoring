@@ -98,9 +98,9 @@ groups:
     annotations:
       summary: "Namada transaction fees have spiked - $$CHAIN_ID$$"
       description: |
-        The transaction fees in Namada have increased significantly beyond normal levels.
-        Current fees: {{ with query "sum by (token) (namada_fees{chain_id=\"$$CHAIN_ID$$\"})" }}{{ printf "%.2f" (. | first | value) }}{{ end }}
+        The transaction fees {{ $labels.token }} have increased significantly beyond normal levels.
         Expected normal range (1-week avg + 2x std deviation): {{ with query "(sum by (token) (avg_over_time(namada_fees{chain_id=\"$$CHAIN_ID$$\"}[7d]))) + 2 * (sum by (token) (stddev_over_time(namada_fees{chain_id=\"$$CHAIN_ID$$\"}[7d])))" }}{{ printf "%.2f" (. | first | value) }}{{ end }}
+        Before Block Height: {{ with query "namada_block_height{chain_id=\"$$CHAIN_ID$$\"}" }}{{ printf "%.0f" (. | first | value) }}{{ end }}
 
   - alert: AbnormalInnerTransactionFailureRate
     expr: |
