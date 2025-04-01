@@ -12,7 +12,7 @@ use crate::state::State;
 /// namada_fees{token="tnam1q9gr66cvu4hrzm0sd5kmlnjje82gs3xlfg3v6nu7",chain_id="housefire-alpaca.cc0d3e0c033be"} 0.5845009999999999
 /// namada_fees{token="tnam1q9gr66cvu4hrzm0sd5kmlnjje82gs3xlfg3v6nu7",chain_id="housefire-alpaca.cc0d3e0c033be"} 0.154409
 /// ```
-use prometheus_exporter::prometheus::{CounterVec, HistogramVec, HistogramOpts, Opts, Registry};
+use prometheus_exporter::prometheus::{CounterVec, HistogramOpts, HistogramVec, Opts, Registry};
 
 use super::MetricTrait;
 
@@ -40,24 +40,21 @@ impl MetricTrait for Fees {
                 (Ok(amount_per_gas), Ok(gas_limit)) => amount_per_gas * gas_limit,
                 _ => continue,
             };
- 
+
             self.fees
                 .with_label_values(&[&tx.fee.gas_token])
                 .inc_by(fee);
 
-            self.fees_by_tx.with_label_values(&[&tx.fee.gas_token]).observe(fee);
-            tracing::debug!(
-                "Transaction fee: {} {}",
-                fee,
-                tx.fee.gas_token
-            );
-            
+            self.fees_by_tx
+                .with_label_values(&[&tx.fee.gas_token])
+                .observe(fee);
+            tracing::debug!("Transaction fee: {} {}", fee, tx.fee.gas_token);
         }
     }
 
     fn update(&self, _pre_state: &State, post_state: &State) {
         println!("updating fees");
-        self.reset(post_state); 
+        self.reset(post_state);
     }
 }
 
@@ -67,13 +64,10 @@ impl Default for Fees {
         let fees = CounterVec::new(fees_opts, &["token"])
             .expect("unable to create gauge vector for transaction fees");
 
-        let fees_by_tx_opts = HistogramOpts::new(
-            "fees_by_tx",
-            "Total fees paid per transaction",
-        ) 
-        .buckets(vec![
-            0.01, 0.02, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0,
-        ]);
+        let fees_by_tx_opts = HistogramOpts::new("fees_by_tx", "Total fees paid per transaction")
+            .buckets(vec![
+                0.01, 0.02, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0,
+            ]);
         let fees_by_tx = HistogramVec::new(fees_by_tx_opts, &["token"])
             .expect("unable to create histogram vec for transaction fees by tx");
 

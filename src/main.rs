@@ -77,7 +77,7 @@ async fn get_state_from_rpc(rpc: &Rpc, height: u64, checksums: Checksums) -> any
         total_supply_native,
         validators,
         future_bonds,
-        future_unbonds
+        future_unbonds,
     ))
 }
 
@@ -125,19 +125,22 @@ async fn main() -> anyhow::Result<()> {
 
                 // immediate next block
                 let block_height = pre_state.next_block_height();
-                let checksums= current_checksums.read().await.clone();
+                let checksums = current_checksums.read().await.clone();
                 let post_state = get_state_from_rpc(&rpc, block_height, checksums)
                     .await
                     .into_retry_error()?;
                 if post_state.get_epoch() != pre_state.get_epoch() {
                     // update checksums
-                    *current_checksums.write().await = get_checksums_at_height(&rpc, initial_block_height).await.into_retry_error()?;
+                    *current_checksums.write().await =
+                        get_checksums_at_height(&rpc, initial_block_height)
+                            .await
+                            .into_retry_error()?;
                 }
 
                 if block_height <= last_block_height {
                     // update metrics
                     metrics.update(&pre_state, &post_state);
-                }else {
+                } else {
                     tracing::info!("Last block height reached: {}", block_height);
                 }
 

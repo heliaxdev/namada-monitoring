@@ -11,34 +11,6 @@ groups:
           Validators appear to be stalled as the block height has not increased for 1 minute! 
           Last recorded block height: {{ with query "namada_block_height{chain_id=\"$$CHAIN_ID$$\"}" }} {{ printf "%.0f" (. | first | value)}}{{ end }}
 
-  - alert: NamadaBlockProcessingSlow
-    expr: |
-      (
-        avg_over_time(namada_block_time_sum{chain_id="$$CHAIN_ID$$"}[5m]) 
-        / avg_over_time(namada_block_time_count{chain_id="$$CHAIN_ID$$"}[5m])
-      ) 
-      > 
-      (
-        avg_over_time(namada_block_time_sum{chain_id="$$CHAIN_ID$$"}[1w]) 
-        / avg_over_time(namada_block_time_count{chain_id="$$CHAIN_ID$$"}[1w])
-      ) 
-      + 
-      (
-        2 * (
-          stddev_over_time(namada_block_time_sum{chain_id="$$CHAIN_ID$$"}[1w]) 
-          / avg_over_time(namada_block_time_count{chain_id="$$CHAIN_ID$$"}[1w])
-        )
-      )
-    labels:
-      severity: warning
-    annotations:
-      summary: "Namada block processing time is abnormal"
-      description: |
-        The average block processing time in the last 5 minutes is significantly higher than normal. 
-        Current 5-minute average block time: {{ with query "(avg_over_time(namada_block_time_sum{chain_id=\"$$CHAIN_ID$$\"}[5m]) / avg_over_time(namada_block_time_count{chain_id=\"$$CHAIN_ID$$\"}[5m]))" }}{{ printf "%ds" (. | first | value) }}{{ end }}
-        Expected to be below: {{ with query "avg_over_time(namada_block_time_sum{chain_id=\"$$CHAIN_ID$$\"}[1w]) / avg_over_time(namada_block_time_count{chain_id=\"$$CHAIN_ID$$\"}[1w]) + (2 * (stddev_over_time(namada_block_time_sum{chain_id=\"$$CHAIN_ID$$\"}[1w]) / stddev_over_time(namada_block_time_count{chain_id=\"$$CHAIN_ID$$\"}[1w])))" }}{{ printf "%ds" (. | first | value) }}{{ end }}
-        Block height: {{ with query "namada_block_height{chain_id=\"$$CHAIN_ID$$\"}" }}{{ printf "%.0f" (. | first | value) }}{{ end }}
-
   - alert: NamadaVotingPowerConcentration
     expr: namada_one_third_threshold{ chain_id="$$CHAIN_ID$$" } > 0.6 * namada_two_third_threshold{ chain_id="$$CHAIN_ID$$" }
     labels:
@@ -92,16 +64,14 @@ groups:
         
   - alert: HighTransactionFees
     expr: |
-      (sum by (token) (namada_fees{chain_id="$$CHAIN_ID$$"})) > (sum by (token) (avg_over_time(namada_fees{chain_id="$$CHAIN_ID$$"}[10m]))) +  2 * (sum by (token) (stddev_over_time(namada_fees{chain_id="$$CHAIN_ID$$"}[10m])))
+      max_over_time(namada_fees[1m]) > avg_over_time(namada_fees[7d]) + 2 * stddev_over_time(namada_fees[7d])
     labels:
       severity: warning
     annotations:
       summary: "Namada transaction fees have spiked"
       description: |
         The transaction fees in Namada have increased significantly beyond normal levels.
-        Current fees: {{ with query "sum by (token) (namada_fees{chain_id=\"$$CHAIN_ID$$\"})" }}{{ printf "%.2f" (. | first | value) }}{{ end }}
-        Expected normal range (10-minute avg + 2x std deviation): {{ with query "(sum by (token) (avg_over_time(namada_fees{chain_id=\"$$CHAIN_ID$$\"}[10m]))) + 2 * (sum by (token) (stddev_over_time(namada_fees{chain_id=\"$$CHAIN_ID$$\"}[10m])))" }}{{ printf "%.2f" (. | first | value) }}{{ end }}
-        Block height: {{ with query "namada_block_height{chain_id=\"$$CHAIN_ID$$\"}" }}{{ printf "%.0f" (. | first | value) }}{{ end }}
+        Check Block Heights Immediatelly Before: {{ with query "namada_block_height{chain_id=\"$$CHAIN_ID$$\"}" }}{{ printf "%.0f" (. | first | value) }}{{ end }}
 
 
   - alert: AbnormalInnerTransactionFailureRate
@@ -213,3 +183,10 @@ groups:
       description: |
         The number of validators below capacity has increased abnormally.
         Block height: {{ with query "namada_block_height{chain_id=\"$$CHAIN_ID$$\"}" }}{{ printf "%.0f" (. | first | value) }}{{ end }}
+
+  - alert: LowLevelAlert
+    expr: namada_fee_alert{chain_id="$$CHAIN_ID$$"} >0
+    labels:
+      severity: critical
+    annotations:
+      description: "{{ $labels.summary }}"

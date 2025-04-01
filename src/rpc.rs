@@ -167,7 +167,6 @@ impl Rpc {
             .map(|client| client.block_results(block_height))
             .collect();
 
-
         let block_height = namada_sdk::tendermint::block::Height::try_from(block_height).unwrap();
 
         let events_res = self.concurrent_requests(events_futures).await;
@@ -372,7 +371,7 @@ impl Rpc {
             })
     }
 
-    async fn concurrent_requests<T, E:std::fmt::Debug >(
+    async fn concurrent_requests<T, E: std::fmt::Debug>(
         &self,
         futures: Vec<impl Future<Output = Result<T, E>> + Unpin>,
     ) -> Option<T> {
@@ -381,7 +380,7 @@ impl Rpc {
             .map(|(_idx, value)| value)
     }
 
-    async fn concurrent_requests_idx<T, E:std::fmt::Debug >(
+    async fn concurrent_requests_idx<T, E: std::fmt::Debug>(
         &self,
         futures: Vec<impl Future<Output = Result<T, E>> + Unpin>,
     ) -> Option<(usize, T)> {
@@ -393,7 +392,7 @@ impl Rpc {
                 Err(_e) => {
                     //tracing::error!("Error: {:?}", _e);
                     futures = remaining
-                },
+                }
             }
         }
         None

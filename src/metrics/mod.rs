@@ -1,3 +1,4 @@
+mod alert;
 mod block_height;
 mod block_time;
 mod bonds;
@@ -10,7 +11,6 @@ mod transactions;
 mod transfers;
 mod validator;
 mod voting_power;
-mod alert;
 
 use std::{collections::HashMap, net::SocketAddr};
 
