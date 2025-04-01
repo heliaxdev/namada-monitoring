@@ -99,8 +99,6 @@ async fn main() -> anyhow::Result<()> {
         }
         _ => config.chain_id = Some(chain_id),
     }
-    // Others may use the chaind from here 
-    config.chain_id = Some(chain_id);
 
     let initial_block_height = match config.initial_block_height {
         u64::MAX => rpc.query_lastest_height().await?,
