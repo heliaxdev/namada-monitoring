@@ -10,6 +10,7 @@ mod transactions;
 mod transfers;
 mod validator;
 mod voting_power;
+mod alert;
 
 use std::{collections::HashMap, net::SocketAddr};
 
@@ -81,6 +82,7 @@ impl MetricsExporter {
             Box::<Signatures>::default() as Box<dyn MetricTrait>,
             Box::<Slashes>::default() as Box<dyn MetricTrait>,
             Box::<ValidatorState>::default() as Box<dyn MetricTrait>,
+            Box::new(alert::Alert::new(config)) as Box<dyn MetricTrait>,
         ];
 
         Self::new(config, metrics)

@@ -372,7 +372,7 @@ impl Rpc {
             })
     }
 
-    async fn concurrent_requests<T, E>(
+    async fn concurrent_requests<T, E:std::fmt::Debug >(
         &self,
         futures: Vec<impl Future<Output = Result<T, E>> + Unpin>,
     ) -> Option<T> {
@@ -381,7 +381,7 @@ impl Rpc {
             .map(|(_idx, value)| value)
     }
 
-    async fn concurrent_requests_idx<T, E>(
+    async fn concurrent_requests_idx<T, E:std::fmt::Debug >(
         &self,
         futures: Vec<impl Future<Output = Result<T, E>> + Unpin>,
     ) -> Option<(usize, T)> {
@@ -390,7 +390,10 @@ impl Rpc {
             let (result, index, remaining) = futures::future::select_all(futures).await;
             match result {
                 Ok(value) => return Some((index, value)),
-                Err(_) => futures = remaining,
+                Err(_e) => {
+                    //tracing::error!("Error: {:?}", _e);
+                    futures = remaining
+                },
             }
         }
         None
