@@ -12,7 +12,7 @@ use namada_sdk::{
 use std::{future::Future, str::FromStr};
 use tendermint_rpc::client::CompatMode;
 use tendermint_rpc::{endpoint::net_info::PeerInfo, HttpClient, HttpClientUrl, Url};
-
+use namada_sdk::tendermint::block::Height as TenderHeight;
 use crate::shared::{
     checksums::Checksums,
     namada::{Address, Block, BlockResult, Epoch, Height, Validator},
@@ -159,15 +159,13 @@ impl Rpc {
         checksums: &Checksums,
         epoch: Epoch,
     ) -> anyhow::Result<Block> {
-        let block_height = namada_sdk::tendermint::block::Height::try_from(block_height).unwrap();
+        let block_height = TenderHeight::try_from(block_height).unwrap();
 
         let events_futures = self
             .clients
             .iter()
             .map(|client| client.block_results(block_height))
             .collect();
-
-        let block_height = namada_sdk::tendermint::block::Height::try_from(block_height).unwrap();
 
         let events_res = self.concurrent_requests(events_futures).await;
         let events = events_res.map(BlockResult::from).context(format!(
