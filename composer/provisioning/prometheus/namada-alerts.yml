@@ -73,7 +73,6 @@ groups:
         The transaction fees in Namada have increased significantly beyond normal levels.
         Check Block Heights Immediatelly Before: {{ with query "namada_block_height{chain_id=\"$$CHAIN_ID$$\"}" }}{{ printf "%.0f" (. | first | value) }}{{ end }}
 
-
   - alert: AbnormalInnerTransactionFailureRate
     expr: |
       (rate(namada_transaction_kind{chain_id="$$CHAIN_ID$$", failed="true"}[10m]) / rate(namada_transaction_kind{chain_id="$$CHAIN_ID$$"}[10m]))
