@@ -78,7 +78,7 @@ groups:
     expr: |
       (rate(namada_transaction_kind{chain_id="$$CHAIN_ID$$", failed="true"}[10m]) / rate(namada_transaction_kind{chain_id="$$CHAIN_ID$$"}[10m]))
       >
-      (2 * quantile(0.50, rate(namada_transaction_kind{chain_id="$$CHAIN_ID$$", failed="true"}[7d:]) / rate(namada_transaction_kind{chain_id="$$CHAIN_ID$$"}[7d:]))
+      (2 * quantile(0.50, rate(namada_transaction_kind{chain_id="$$CHAIN_ID$$", failed="true"}[7d:]) / rate(namada_transaction_kind{chain_id="$$CHAIN_ID$$"}[7d:])))
     labels:
       severity: critical
     annotations:
@@ -99,7 +99,7 @@ groups:
       description: |
         Token {{ $labels.token }} experienced a large transfer in last minute ({{ with query "rate(namada_transfer_amount{chain_id=\"$$CHAIN_ID$$\"}[1m])" }}{{ printf "%.0f" (. | first | value) }}{{ end }})
         The amount is unusually high compared to the typical increases over the past week.
-        Transfer Amount: {{ $value }} {{ $labels.token }}
+        Transfering {{ $labels.token }}
         Block height: {{ with query "namada_block_height{chain_id=\"$$CHAIN_ID$$\"} " }}{{ printf "%.0f" (. | first | value) }}{{ end }}
 
   - alert: HighSlashingRate
