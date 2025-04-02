@@ -168,6 +168,7 @@ impl Rpc {
             .collect();
 
         let events_res = self.concurrent_requests(events_futures).await;
+
         let events = events_res.map(BlockResult::from).context(format!(
             "Should be able to query for block events for height: {}",
             block_height
@@ -387,8 +388,8 @@ impl Rpc {
             let (result, index, remaining) = futures::future::select_all(futures).await;
             match result {
                 Ok(value) => return Some((index, value)),
-                Err(_e) => {
-                    //tracing::error!("Error: {:?}", _e);
+                Err(e) => {
+                    tracing::error!("Error: {:?}", e);
                     futures = remaining
                 }
             }

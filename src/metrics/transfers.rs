@@ -1,6 +1,6 @@
 /// ## Transfer Amount (transfer_amount)
-/// This metric tracks the total amount of tokens transferred per epoch. It helps monitor token movement trends and detect unusual
-///  transfer activity.
+/// This metric tracks the total amount of tokens transferred since the monitoring started.
+/// It helps monitor token movement trends and detect unusual transfer activity.
 ///
 /// ### Example
 /// ```

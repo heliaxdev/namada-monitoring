@@ -32,6 +32,7 @@ impl MetricTrait for Fees {
 
     fn reset(&self, state: &State) {
         let block = state.get_last_block();
+        self.fees.reset();
         for tx in &block.transactions {
             let amount_per_gas = tx.fee.amount_per_gas_unit.parse::<f64>();
             let gas_limit = tx.fee.gas.parse::<f64>();
