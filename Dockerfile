@@ -6,7 +6,7 @@ RUN cargo chef prepare --recipe-path recipe.json
 FROM lukemathwalker/cargo-chef:latest-rust-1.82.0 AS cacher
 WORKDIR /app
 COPY --from=planner /app/recipe.json recipe.json
-RUN apt-get clean && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends --assume-yes \
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends --assume-yes \
     libprotobuf-dev \
     build-essential \
     clang-tools-16 \

@@ -1,5 +1,10 @@
+use crate::shared::{
+    checksums::Checksums,
+    namada::{Address, Block, BlockResult, Epoch, Height, Validator},
+};
 use anyhow::Context;
 use futures::FutureExt;
+use namada_sdk::tendermint::block::Height as TenderHeight;
 use namada_sdk::{
     address::Address as NamadaAddress,
     hash::Hash,
@@ -12,11 +17,6 @@ use namada_sdk::{
 use std::{future::Future, str::FromStr};
 use tendermint_rpc::client::CompatMode;
 use tendermint_rpc::{endpoint::net_info::PeerInfo, HttpClient, HttpClientUrl, Url};
-use namada_sdk::tendermint::block::Height as TenderHeight;
-use crate::shared::{
-    checksums::Checksums,
-    namada::{Address, Block, BlockResult, Epoch, Height, Validator},
-};
 
 pub struct Rpc {
     pub clients: Vec<HttpClient>,
