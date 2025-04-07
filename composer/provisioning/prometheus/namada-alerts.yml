@@ -103,14 +103,14 @@ groups:
 
   - alert: HighSlashingRate
     expr: |
-      slashes{chain_id="$$CHAIN_ID$$"} > 0
+      rate(namada_slashes{chain_id="$$CHAIN_ID$$"}[1m]) > 0
     labels:
       severity: critical
     annotations:
       summary: "Unusual number of validator slashes - $$CHAIN_ID$$"
       description: |
         Slashing detected.
-        Block height: {{ with query "namada_block_height{chain_id=\"$$CHAIN_ID$$\"}" }}{{ printf "%.0f" (. | first | value) }}{{ end }}
+        Block height when the alert was processed: {{ with query "namada_block_height{chain_id=\"$$CHAIN_ID$$\"}" }}{{ printf "%.0f" (. | first | value) }}{{ end }}
        
   - alert: AbnormalConsensusValidatorChange
     expr: |
@@ -184,7 +184,7 @@ groups:
         Block height: {{ with query "namada_block_height{chain_id=\"$$CHAIN_ID$$\"}" }}{{ printf "%.0f" (. | first | value) }}{{ end }}
 
   - alert: LowLevelAlert
-    expr: (namada_fee_alert{chain_id="$$CHAIN_ID$$"} > 0 unless namada_fee_alert{chain_id="$$CHAIN_ID$$"} offset 7s)
+    expr: (namada_fee_alert{chain_id="$$CHAIN_ID$$"} > 0 unless namada_fee_alert{chain_id="$$CHAIN_ID$$"} offset 5m)
     labels:
       severity: critical
     annotations:
