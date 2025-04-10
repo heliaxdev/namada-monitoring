@@ -86,7 +86,7 @@ async fn main() -> anyhow::Result<()> {
 
                     let alerts = checks.run_checks(&[&pre_state, &post_state]);
                     if !alerts.is_empty() {
-                        let text = [
+                        let mut text = vec![
                             SlackTextContent::Text(":rotating_light: Alert at height:".into()),
                             SlackTextContent::Link(SlackLink::new(
                                 format!("{}/{}", block_explorer, block_height).as_str(),
@@ -94,6 +94,11 @@ async fn main() -> anyhow::Result<()> {
                             )),
                             SlackTextContent::Text("\n".into()),
                         ];
+                        
+                        for alert in alerts {
+                            text.push(SlackTextContent::Text(format!("{alert}\n").into()));
+                        }
+                        text.push(SlackTextContent::Text("\n".into()));
                         let payload = PayloadBuilder::new()
                             .text(text.as_slice())
                             .build()
