@@ -135,7 +135,7 @@ async fn main() -> anyhow::Result<()> {
 }
 
 fn retry_strategy(max_delay_milis: u64) -> ExponentialBackoff {
-    ExponentialBackoff::from_millis(1)
+    ExponentialBackoff::from_millis(100)
         .factor(1)
         .max_delay_millis(max_delay_milis)
 }
