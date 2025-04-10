@@ -1,6 +1,10 @@
-use crate::shared::{
-    checksums::Checksums,
-    namada::{Address, Block, BlockResult, Epoch, Height, Validator},
+use crate::state::State;
+use crate::{
+    config::AppConfig,
+    shared::{
+        checksums::Checksums,
+        namada::{Address, Block, BlockResult, Epoch, Height, Validator},
+    },
 };
 use anyhow::Context;
 use futures::FutureExt;
@@ -11,19 +15,89 @@ use namada_sdk::{
     proof_of_stake::types::ValidatorState,
     rpc,
     state::{BlockHeight, Epoch as NamadaEpoch, Key},
-    tendermint::node::Id,
     tendermint_rpc::Client,
 };
 use std::{future::Future, str::FromStr};
 use tendermint_rpc::client::CompatMode;
-use tendermint_rpc::{endpoint::net_info::PeerInfo, HttpClient, HttpClientUrl, Url};
+use tendermint_rpc::{HttpClient, HttpClientUrl, Url};
 
 pub struct Rpc {
-    pub clients: Vec<HttpClient>,
+    clients: Vec<HttpClient>,
+    cache: Option<(Epoch, Checksums, Vec<Validator>)>,
+    pos: std::cell::RefCell<usize>,
 }
 
 impl Rpc {
-    pub fn new(urls: Vec<String>) -> Self {
+    pub fn get_clients(&self) -> Box<dyn Iterator<Item = &HttpClient> + '_> {
+        // round robin using self.pos and a hardcoded size of 3
+        *self.pos.borrow_mut() += 1;
+        Box::new(self.clients.iter().cycle().skip(*self.pos.borrow()).take(5))
+    }
+
+    async fn get_checksums_at_height(&self, height: u64) -> anyhow::Result<Checksums> {
+        tracing::debug!("Getting checksums at height {}", height);
+        let mut checksums = Checksums::default();
+        for code_path in Checksums::code_paths() {
+            let code = self
+                .query_tx_code_hash(&code_path, height)
+                .await?
+                .unwrap_or_else(|| panic!("{} must be defined in namada storage.", code_path));
+            checksums.add(code_path, code);
+        }
+        Ok(checksums)
+    }
+
+    pub async fn get_state(&mut self, height: u64) -> anyhow::Result<State> {
+        tracing::debug!("Getting state at height {}", height);
+
+        let native_token = self.query_native_token().await?;
+        let epoch = self.query_current_epoch(height).await?.unwrap_or(0);
+
+        // get checksums and validators from cached value or from rpc
+        let (checksums, validators) = match &self.cache {
+            Some((cached_epoch, checksums, validators)) if *cached_epoch == epoch => {
+                (checksums, validators)
+            }
+            _ => {
+                let validators = self.query_validators(epoch).await?;
+                let checksums = self.get_checksums_at_height(height).await?;
+                self.cache = Some((epoch, checksums, validators));
+                (
+                    &self.cache.as_ref().unwrap().1,
+                    &self.cache.as_ref().unwrap().2,
+                )
+            }
+        };
+
+        let block = self.query_block(height, checksums, epoch).await?;
+
+        if block.height != height {
+            return Err(anyhow::anyhow!(
+                "Block height mismatch: expected {}, got {}",
+                height,
+                block.height
+            ));
+        }
+
+        let max_block_time_estimate = self.query_max_block_time_estimate().await?;
+        let total_supply_native = self.query_total_supply(&native_token).await?;
+
+        // flamegraph says this is time consuming
+        let (future_bonds, future_unbonds) = self.query_future_bonds_and_unbonds(epoch).await?;
+
+        Ok(State::new(
+            block,
+            native_token,
+            max_block_time_estimate,
+            total_supply_native,
+            validators.clone(),
+            future_bonds,
+            future_unbonds,
+        ))
+    }
+
+    pub fn new(config: &AppConfig) -> Self {
+        let urls = config.rpc.clone();
         Self {
             clients: urls
                 .iter()
@@ -35,20 +109,22 @@ impl Rpc {
                         .unwrap()
                 })
                 .collect(),
+            cache: None,
+            pos: 0.into(),
         }
     }
 
     pub async fn get_abci_info(&self) -> anyhow::Result<()> {
-        for client in &self.clients {
+        for client in self.get_clients() {
             let abci_info = client.abci_info().await?;
-            println!("abci_info: {:?}", abci_info);
+            println!("bci_info: {:?}", abci_info);
         }
         Ok(())
     }
 
     pub async fn get_chain_id(&self) -> anyhow::Result<String> {
         let mut chain_id = None;
-        for client in &self.clients {
+        for client in self.get_clients() {
             let current_chain_id = match client.status().await {
                 Ok(status) => {
                     let network = status.node_info.network.clone();
@@ -83,8 +159,7 @@ impl Rpc {
         let hash_key = Key::wasm_hash(tx_code_path);
 
         let futures: Vec<_> = self
-            .clients
-            .iter()
+            .get_clients()
             .map(|client| {
                 rpc::query_storage_value_bytes(client, &hash_key, Some(BlockHeight(height)), false)
                     .boxed()
@@ -106,8 +181,7 @@ impl Rpc {
 
     pub async fn query_current_epoch(&self, block_height: Height) -> anyhow::Result<Option<Epoch>> {
         let futures: Vec<_> = self
-            .clients
-            .iter()
+            .get_clients()
             .map(|client| rpc::query_epoch_at_height(client, block_height.into()).boxed())
             .collect();
 
@@ -121,8 +195,7 @@ impl Rpc {
 
     pub async fn query_lastest_height(&self) -> anyhow::Result<u64> {
         let futures = self
-            .clients
-            .iter()
+            .get_clients()
             .map(|client| client.latest_block())
             .collect();
 
@@ -137,8 +210,7 @@ impl Rpc {
         // at the tip and filter the slashes that happened after the target height :chefkiss:
         let pos_query = namada_sdk::queries::RPC.vp().pos();
         let futures = self
-            .clients
-            .iter()
+            .get_clients()
             .map(|client| Box::pin(pos_query.slashes(client)))
             .collect();
 
@@ -162,8 +234,7 @@ impl Rpc {
         let block_height = TenderHeight::try_from(block_height).unwrap();
 
         let events_futures = self
-            .clients
-            .iter()
+            .get_clients()
             .map(|client| client.block_results(block_height))
             .collect();
 
@@ -175,8 +246,7 @@ impl Rpc {
         ))?;
 
         let block_futures = self
-            .clients
-            .iter()
+            .get_clients()
             .map(|client| client.block(block_height))
             .collect();
 
@@ -195,8 +265,7 @@ impl Rpc {
         epoch: Epoch,
     ) -> anyhow::Result<ValidatorState> {
         let futures = self
-            .clients
-            .iter()
+            .get_clients()
             .map(|client| rpc::get_validator_state(client, validator, Some(epoch.into())).boxed())
             .collect();
 
@@ -215,8 +284,7 @@ impl Rpc {
         epoch: Epoch,
     ) -> anyhow::Result<u64> {
         let futures = self
-            .clients
-            .iter()
+            .get_clients()
             .map(|client| rpc::get_validator_stake(client, epoch.into(), validator).boxed())
             .collect();
 
@@ -228,8 +296,7 @@ impl Rpc {
 
     pub async fn query_validators(&self, epoch: Epoch) -> anyhow::Result<Vec<Validator>> {
         let futures = self
-            .clients
-            .iter()
+            .get_clients()
             .map(|client| rpc::get_all_validators(client, NamadaEpoch(epoch)).boxed())
             .collect();
 
@@ -260,51 +327,9 @@ impl Rpc {
         Ok(validators)
     }
 
-    // Ask http://127.0.0.1:26657/net_info for peer
-    // {
-    //     "id": 0,
-    //     "jsonrpc": "2.0",
-    //     "result": {
-    //         "listening": true,
-    //         "listeners": [
-    //         "Listener(@)"
-    //         ],
-    //         "n_peers": "1",
-    //         "peers": [
-    //         {
-    //             "node_id": "5576458aef205977e18fd50b274e9b5d9014525a",
-    //             "url": "tcp://5576458aef205977e18fd50b274e9b5d9014525a@95.179.155.35:26656"
-    //         }
-    //         ]
-    //     }
-    //     }
-    pub async fn query_peers(&self) -> anyhow::Result<(Id, Vec<PeerInfo>)> {
-        let futures = self
-            .clients
-            .iter()
-            .map(|client| client.net_info().boxed())
-            .collect();
-
-        let res = self
-            .concurrent_requests_idx(futures)
-            .await
-            .context("Should be able to query peers");
-
-        match res {
-            Ok((idx, info)) => {
-                let peers: Vec<PeerInfo> = info.peers;
-                let client = &self.clients[idx];
-                let chain_id = client.status().await?.node_info.id;
-                Ok((chain_id, peers))
-            }
-            _ => Err(anyhow::anyhow!("No peers found")),
-        }
-    }
-
     pub async fn query_native_token(&self) -> anyhow::Result<Address> {
         let futures = self
-            .clients
-            .iter()
+            .get_clients()
             .map(|client| rpc::query_native_token(client).boxed())
             .collect();
 
@@ -319,8 +344,7 @@ impl Rpc {
             .context("Should be able to convert string to address")?;
 
         let futures = self
-            .clients
-            .iter()
+            .get_clients()
             .map(|client| rpc::get_token_total_supply(client, &address).boxed())
             .collect();
 
@@ -332,8 +356,7 @@ impl Rpc {
 
     pub async fn query_max_block_time_estimate(&self) -> anyhow::Result<u64> {
         let futures = self
-            .clients
-            .iter()
+            .get_clients()
             .map(|client| rpc::query_max_block_time_estimate(client).boxed())
             .collect();
 
@@ -346,8 +369,7 @@ impl Rpc {
     pub async fn query_future_bonds_and_unbonds(&self, epoch: Epoch) -> anyhow::Result<(u64, u64)> {
         let pipeline_epoch = NamadaEpoch(epoch + 1);
         let futures = self
-            .clients
-            .iter()
+            .get_clients()
             .map(|client| {
                 rpc::enriched_bonds_and_unbonds(client, pipeline_epoch, &None, &None).boxed()
             })

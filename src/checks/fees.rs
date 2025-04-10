@@ -1,10 +1,4 @@
-use super::MetricTrait;
-use crate::config::AppConfig;
-use crate::state::State;
-use anyhow::Result;
-use prometheus_exporter::prometheus::core::{AtomicU64, GenericCounterVec};
-use prometheus_exporter::prometheus::{Opts, Registry};
-/// Low level alert metric hack
+use super::{AppConfig, CheckTrait, State};
 use std::collections::HashMap;
 
 type Token = String;
@@ -13,79 +7,21 @@ struct FeeThreshold {
     value: f64,
 }
 
-pub struct Alert {
+pub struct FeeCheck {
     explorer: String,
     thresholds: HashMap<Token, FeeThreshold>,
-    alert_counter: GenericCounterVec<AtomicU64>,
 }
 
-impl MetricTrait for Alert {
-    fn register(&self, registry: &Registry) -> Result<()> {
-        registry.register(Box::new(self.alert_counter.clone()))?;
-        Ok(())
-    }
-
-    fn reset(&self, _state: &State) {}
-
-    fn update(&self, _pre_state: &State, post_state: &State) {
-        if self.thresholds.is_empty() {
-            return;
-        }
-
-        let block = post_state.get_last_block();
-        for tx in &block.transactions {
-            let amount_per_gas = tx.fee.amount_per_gas_unit.parse::<f64>();
-            let gas_limit = tx.fee.gas.parse::<f64>();
-
-            let fee = match (amount_per_gas, gas_limit) {
-                (Ok(amount_per_gas), Ok(gas_limit)) => amount_per_gas * gas_limit,
-                _ => continue,
-            };
-            // Using the thresholds in self check if any tx paid more than the threshold considering the token matches
-            let fee_threshold = self.thresholds.get(&tx.fee.gas_token);
-            if fee_threshold.is_none() {
-                continue;
-            }
-            let fee_threshold = fee_threshold.unwrap();
-            if fee < fee_threshold.value * 10.0 {
-                continue;
-            }
-            let gas_token_name = fee_threshold.name.clone();
-            let summary = format!("A tx({}) at height {} paid {} {} which is more than the alert configured threshold {}. Link: {}{}",
-                tx.id,
-                block.height,
-                fee,
-                gas_token_name,
-                fee_threshold.value * 10.0,
-                self.explorer,
-                tx.id
-            );
-            self.alert_counter.with_label_values(&[&summary]).inc();
-
-            tracing::debug!("Low Level Alert {}", summary);
-        }
-    }
-}
-
-impl Default for Alert {
+impl Default for FeeCheck {
     fn default() -> Self {
-        let alert_counter_ops = Opts::new("fee_alert", "Low level trivial alerts");
-        let alert_counter = GenericCounterVec::<AtomicU64>::new(alert_counter_ops, &["summary"])
-            .expect("Failed to create GenericCounterVec");
         Self {
-            alert_counter,
-            thresholds: HashMap::new(),
             explorer: "https://explorer75.org/namada/tx/".to_string(),
+            thresholds: HashMap::new(),
         }
     }
 }
 
-impl Alert {
-    pub fn new(config: &AppConfig) -> Self {
-        let mut instance = Self::default();
-        instance.populate_thresholds(&config.chain_id.clone().unwrap());
-        instance
-    }
+impl FeeCheck {
     fn populate_thresholds(&mut self, chain_id: &str) {
         if chain_id == "campfire-square.ff09671d333707" {
             self.thresholds.insert(
@@ -296,5 +232,53 @@ impl Alert {
             );
             self.explorer = "https://explorer75.org/namada/tx/".to_string();
         }
+    }
+
+    pub fn new(config: &AppConfig) -> Self {
+        let mut instance = Self::default();
+        instance.populate_thresholds(&config.chain_id.clone().unwrap());
+        instance
+    }
+}
+
+impl CheckTrait for FeeCheck {
+    fn check(&self, states: &[&State]) -> Vec<String> {
+        // get lastest state
+        let state = states.last().unwrap();
+        let block = state.get_last_block();
+        let mut alerts = vec![];
+        for tx in &block.transactions {
+            let amount_per_gas = tx.fee.amount_per_gas_unit.parse::<f64>();
+            let gas_limit = tx.fee.gas.parse::<f64>();
+
+            let fee = match (amount_per_gas, gas_limit) {
+                (Ok(amount_per_gas), Ok(gas_limit)) => amount_per_gas * gas_limit,
+                _ => continue,
+            };
+
+            // Using the thresholds in self check if any tx paid more than the threshold considering the token matches
+            let fee_threshold = self.thresholds.get(&tx.fee.gas_token);
+            if fee_threshold.is_none() {
+                continue;
+            }
+            let fee_threshold = fee_threshold.unwrap();
+            if fee < fee_threshold.value * 10.0 {
+                continue;
+            }
+            let gas_token_name = fee_threshold.name.clone();
+
+            let summary = format!("💸 {}Wrapper with {} inner TXs {} paid {} {} which is more than the alert configured threshold {}. Link: {}{}",
+                if tx.atomic { "Atomic" } else { "" },
+                tx.inners.len(),
+                tx.id,
+                fee,
+                gas_token_name,
+                fee_threshold.value * 10.0,
+                self.explorer,
+                tx.id
+            );
+            alerts.push(summary);
+        }
+        alerts
     }
 }

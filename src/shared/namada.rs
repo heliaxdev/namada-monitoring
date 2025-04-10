@@ -1,4 +1,8 @@
+use crate::shared::namada::ibc::core::handler::types::msgs::MsgEnvelope;
+use ibc::clients::tendermint::types::Header as ClientHeader;
+use ibc::core::client::types::msgs::ClientMsg;
 use namada_sdk::borsh::BorshDeserialize;
+use namada_sdk::collections::HashSet;
 use namada_sdk::governance::{InitProposalData, VoteProposalData};
 use namada_sdk::ibc::{self, IbcMessage};
 use namada_sdk::key::common::PublicKey;
@@ -465,6 +469,52 @@ impl Block {
                                     accepted: inner.was_applied,
                                 });
                             }
+                        }
+                    }
+                    InnerKind::IbcMsgTransfer(IbcMessage::Envelope(msg_envelope)) => {
+                        match msg_envelope.as_ref() {
+                            MsgEnvelope::Client(client_msg) => {
+                                match client_msg {
+                                    ClientMsg::CreateClient(msg_create_client) => {
+                                        let header = ClientHeader::try_from(
+                                            msg_create_client.consensus_state.clone(),
+                                        )
+                                        .unwrap();
+                                        let mut address_set = HashSet::new();
+                                        for val in header.validator_set.validators() {
+                                            if address_set.contains(&val.address) {
+                                                println!("Validator already exists: {:?} !!!!!!!!!!!!!!!!!!!!!" , val.address);
+                                            } else {
+                                                address_set.insert(val.address);
+                                            }
+                                        }
+                                        tracing::info!("Ibc Client created with {} validators (all different address)_", address_set.len());
+                                    }
+                                    ClientMsg::UpdateClient(msg_update_client) => {
+                                        //println!("BBB msg_update_client.clientmessage: {:?}", msg_update_client.client_message);
+
+                                        let header = ClientHeader::try_from(
+                                            msg_update_client.client_message.clone(),
+                                        )
+                                        .unwrap();
+                                        let mut address_set = HashSet::new();
+                                        for val in header.validator_set.validators() {
+                                            if address_set.contains(&val.address) {
+                                                println!("Validator already exists: {:?} !!!!!!!!!!!!!!!!!!!!!" , val.address);
+                                            } else {
+                                                address_set.insert(val.address);
+                                            }
+                                        }
+                                        tracing::info!("Ibc Client updated with {} validators (all different address)", address_set.len());
+                                    }
+                                    ClientMsg::Misbehaviour(_msg_submit_misbehaviour) => {}
+                                    ClientMsg::UpgradeClient(_msg_upgrade_client) => {}
+                                    ClientMsg::RecoverClient(_msg_recover_client) => {}
+                                }
+                            }
+                            MsgEnvelope::Connection(_connection_msg) => {}
+                            MsgEnvelope::Channel(_channel_msg) => {}
+                            MsgEnvelope::Packet(_packet_msg) => {}
                         }
                     }
                     _ => {}

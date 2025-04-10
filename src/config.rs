@@ -9,10 +9,10 @@ pub struct AppConfig {
     pub chain_id: Option<String>,
 
     #[clap(long, env)]
-    pub slack_token: Option<String>,
+    pub block_explorer: Option<String>,
 
     #[clap(long, env)]
-    pub slack_channel: Option<String>,
+    pub slack: Option<String>,
 
     #[clap(long, env, default_value_t = 9184)]
     pub prometheus_port: u64,
@@ -23,7 +23,7 @@ pub struct AppConfig {
     #[clap(long, env, default_value_t = u64::MAX)]
     pub last_block_height: u64,
 
-    #[clap(long, env, default_value_t = 1000)]
+    #[clap(long, env, default_value_t = 10)]
     pub sleep_for: u64,
 
     #[clap(flatten)]

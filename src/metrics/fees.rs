@@ -54,7 +54,6 @@ impl MetricTrait for Fees {
     }
 
     fn update(&self, _pre_state: &State, post_state: &State) {
-        println!("updating fees");
         self.reset(post_state);
     }
 }

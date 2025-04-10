@@ -27,7 +27,10 @@ use transfers::Transfers;
 use validator::ValidatorState;
 use voting_power::VotingPower;
 
-use crate::{config::AppConfig, state::State};
+use crate::{
+    config::AppConfig,
+    state::State,
+};
 use anyhow::{Context, Result};
 use prometheus_exporter::prometheus::Registry;
 
@@ -57,6 +60,7 @@ impl MetricsExporter {
         .expect("Failed to create registry");
 
         for metric in &metrics {
+            // TODO: check that it is enabled in the config
             metric
                 .register(&registry)
                 .expect("Failed to register metric");
@@ -96,6 +100,12 @@ impl MetricsExporter {
         builder.with_registry(self.registry.clone());
         builder.start().context("can not start exporter")?;
 
+        Ok(())
+    }
+    pub fn start_exporter_with(&self, state: &State) -> anyhow::Result<()> {
+        self.reset(state);
+        self.start_exporter()
+            .context("can not start exporter with state")?;
         Ok(())
     }
 
