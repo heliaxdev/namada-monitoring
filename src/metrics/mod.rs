@@ -51,7 +51,7 @@ impl MetricsExporter {
             Some("namada".to_string()),
             Some(HashMap::from_iter([(
                 "chain_id".to_string(),
-                config.chain_id.as_ref().unwrap().to_string(),
+                config.chain_id.clone(),
             )])),
         )
         .expect("Failed to create registry");

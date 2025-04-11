@@ -1,10 +1,9 @@
 use crate::state::State;
-use crate::{
-    config::AppConfig,
+use crate::
     shared::{
         checksums::Checksums,
         namada::{Address, Block, BlockResult, Epoch, Height, Validator},
-    },
+    
 };
 use anyhow::Context;
 use futures::FutureExt;
@@ -96,19 +95,38 @@ impl Rpc {
         ))
     }
 
-    pub fn new(config: &AppConfig) -> Self {
-        let urls = config.rpc.clone();
+
+    pub async fn new(urls: &Vec<String>, expected_chain_id: &str) -> Self {
+        let clients = urls
+            .iter()
+            .filter_map(|url| {
+                let url = Url::from_str(url).unwrap();
+                let client = HttpClient::builder(HttpClientUrl::try_from(url.clone()).unwrap())
+                    .compat_mode(CompatMode::V0_37)
+                    .build()
+                    .unwrap();
+
+                // Check if the client matches the expected chain ID
+                match tokio::task::block_in_place(|| tokio::runtime::Handle::current().block_on(client.status())) {
+                    Ok(status) if status.node_info.network.to_string() == expected_chain_id => Some(client),
+                    Ok(_) => {
+                        tracing::warn!(
+                            "Client at {} does not match expected chain ID: {}",
+                            url.to_string(),
+                            expected_chain_id
+                        );
+                        None
+                    }
+                    Err(err) => {
+                        tracing::error!("Failed to connect to client at {}: {:?}", url, err);
+                        None
+                    }
+                }
+            })
+            .collect();
+
         Self {
-            clients: urls
-                .iter()
-                .map(|url| {
-                    let url = Url::from_str(url).unwrap();
-                    HttpClient::builder(HttpClientUrl::try_from(url).unwrap())
-                        .compat_mode(CompatMode::V0_37)
-                        .build()
-                        .unwrap()
-                })
-                .collect(),
+            clients,
             cache: None,
             pos: 0.into(),
         }

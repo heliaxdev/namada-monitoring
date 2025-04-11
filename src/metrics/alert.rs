@@ -83,7 +83,7 @@ impl Default for Alert {
 impl Alert {
     pub fn new(config: &AppConfig) -> Self {
         let mut instance = Self::default();
-        instance.populate_thresholds(&config.chain_id.clone().unwrap());
+        instance.populate_thresholds(&config.chain_id.clone());
         instance
     }
     fn populate_thresholds(&mut self, chain_id: &str) {

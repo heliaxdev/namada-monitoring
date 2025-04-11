@@ -6,7 +6,7 @@ pub struct AppConfig {
     pub rpc: Vec<String>,
 
     #[clap(long, env)]
-    pub chain_id: Option<String>,
+    pub chain_id: String,
 
     #[clap(long, env)]
     pub block_explorer: Option<String>,

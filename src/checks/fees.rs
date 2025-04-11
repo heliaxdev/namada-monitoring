@@ -236,7 +236,7 @@ impl FeeCheck {
 
     pub fn new(config: &AppConfig) -> Self {
         let mut instance = Self::default();
-        instance.populate_thresholds(&config.chain_id.clone().unwrap());
+        instance.populate_thresholds(&config.chain_id.clone());
         instance
     }
 }
@@ -280,3 +280,6 @@ impl CheckTrait for FeeCheck {
         alerts
     }
 }
+
+
+

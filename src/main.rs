@@ -27,11 +27,11 @@ fn notify(err: &std::io::Error, duration: std::time::Duration) {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let mut config = AppConfig::parse();
+    let config = AppConfig::parse();
     config.log.init();
 
     let retry_strategy = retry_strategy(config.sleep_for);
-    let mut rpc = Rpc::new(&config);
+    let mut rpc = Rpc::new(&config.rpc, &config.chain_id).await;
 
     let initial_block_height = match config.initial_block_height {
         u64::MAX => rpc.query_lastest_height().await?,
@@ -39,26 +39,14 @@ async fn main() -> anyhow::Result<()> {
     };
     let last_block_height = config.last_block_height;
 
-    // Check the given chain id matches the one reported by the rpc
-    let chain_id = rpc.get_chain_id().await?;
-    match config.chain_id.as_ref() {
-        Some(expected_chain_id) if &chain_id != expected_chain_id => {
-            return Err(anyhow::anyhow!(
-                "Chain ID mismatch: expected {}, got {}",
-                expected_chain_id,
-                chain_id
-            ));
-        }
-        _ => config.chain_id = Some(chain_id),
-    };
-
     let metrics = MetricsExporter::default_metrics(&config);
     let checks = CheckExporter::new(&config);
 
     let state = rpc.get_state(initial_block_height).await?;
     metrics.start_exporter_with(&state)?;
 
-    let rpc = Arc::new(Mutex::new(Rpc::new(&config)));
+
+    let rpc = Arc::new(Mutex::new(rpc));
     let current_state = Arc::new(RwLock::new(state));
     let block_explorer = config
         .block_explorer
@@ -90,7 +78,7 @@ async fn main() -> anyhow::Result<()> {
                         let mut alert_content = vec![];
                         alert_content.push(SlackTextContent::Text(SlackText::new(format!(
                             ":bricks: {} - Alerts at height:",
-                            config.chain_id.clone().unwrap()
+                            config.chain_id.clone()
                         ))));
                         alert_content.push(SlackTextContent::Link(SlackLink::new(
                             &format!("{}/blocks/{}", block_explorer, block_height),
