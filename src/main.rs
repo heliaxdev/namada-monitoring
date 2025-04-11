@@ -45,7 +45,6 @@ async fn main() -> anyhow::Result<()> {
     let state = rpc.get_state(initial_block_height).await?;
     metrics.start_exporter_with(&state)?;
 
-
     let rpc = Arc::new(Mutex::new(rpc));
     let current_state = Arc::new(RwLock::new(state));
     let block_explorer = config

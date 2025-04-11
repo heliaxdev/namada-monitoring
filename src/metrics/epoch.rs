@@ -32,10 +32,12 @@ impl MetricTrait for Epoch {
     }
 
     fn update(&self, pre_state: &State, post_state: &State) {
-        if pre_state.get_last_block().epoch
-            > post_state.get_last_block().epoch
-        {
-            tracing::error!("Epoch not updated Error. pre_state: {:?}, post_state: {:?}", pre_state.get_last_block().epoch, post_state.get_last_block().epoch);
+        if pre_state.get_last_block().epoch > post_state.get_last_block().epoch {
+            tracing::error!(
+                "Epoch not updated Error. pre_state: {:?}, post_state: {:?}",
+                pre_state.get_last_block().epoch,
+                post_state.get_last_block().epoch
+            );
         }
         self.reset(post_state);
     }

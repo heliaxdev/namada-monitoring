@@ -1,10 +1,8 @@
-use crate::state::State;
-use crate::
-    shared::{
-        checksums::Checksums,
-        namada::{Address, Block, BlockResult, Epoch, Height, Validator},
-    
+use crate::shared::{
+    checksums::Checksums,
+    namada::{Address, Block, BlockResult, Epoch, Height, Validator},
 };
+use crate::state::State;
 use anyhow::Context;
 use futures::FutureExt;
 use namada_sdk::tendermint::block::Height as TenderHeight;
@@ -95,8 +93,7 @@ impl Rpc {
         ))
     }
 
-
-    pub async fn new(urls: &Vec<String>, expected_chain_id: &str) -> Self {
+    pub async fn new(urls: &[String], expected_chain_id: &str) -> Self {
         let clients = urls
             .iter()
             .filter_map(|url| {
@@ -107,8 +104,12 @@ impl Rpc {
                     .unwrap();
 
                 // Check if the client matches the expected chain ID
-                match tokio::task::block_in_place(|| tokio::runtime::Handle::current().block_on(client.status())) {
-                    Ok(status) if status.node_info.network.to_string() == expected_chain_id => Some(client),
+                match tokio::task::block_in_place(|| {
+                    tokio::runtime::Handle::current().block_on(client.status())
+                }) {
+                    Ok(status) if status.node_info.network.to_string() == expected_chain_id => {
+                        Some(client)
+                    }
                     Ok(_) => {
                         tracing::warn!(
                             "Client at {} does not match expected chain ID: {}",
@@ -130,14 +131,6 @@ impl Rpc {
             cache: None,
             pos: 0.into(),
         }
-    }
-
-    pub async fn get_abci_info(&self) -> anyhow::Result<()> {
-        for client in self.get_clients() {
-            let abci_info = client.abci_info().await?;
-            println!("bci_info: {:?}", abci_info);
-        }
-        Ok(())
     }
 
     pub async fn get_chain_id(&self) -> anyhow::Result<String> {

@@ -280,6 +280,3 @@ impl CheckTrait for FeeCheck {
         alerts
     }
 }
-
-
-
