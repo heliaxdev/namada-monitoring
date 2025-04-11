@@ -31,10 +31,10 @@ async fn main() -> anyhow::Result<()> {
     config.log.init();
 
     let retry_strategy = retry_strategy(config.sleep_for);
-    let mut rpc = Rpc::new(&config.rpc, &config.chain_id).await;
+    let rpc = Arc::new(Mutex::new(Rpc::new(&config.rpc, &config.chain_id).await));
 
     let initial_block_height = match config.initial_block_height {
-        u64::MAX => rpc.query_lastest_height().await?,
+        u64::MAX => rpc.lock().await.query_lastest_height().await?,
         height => height,
     };
     let last_block_height = config.last_block_height;
@@ -42,10 +42,22 @@ async fn main() -> anyhow::Result<()> {
     let metrics = MetricsExporter::default_metrics(&config);
     let checks = CheckExporter::new(&config);
 
-    let state = rpc.get_state(initial_block_height).await?;
+    // retry 10 times to get the first state
+    let state = Retry::spawn_notify(
+        retry_strategy.clone(),
+        || async {
+            let mut rpc = rpc.lock().await;
+            let state = rpc
+                .get_state(initial_block_height)
+                .await
+                .into_retry_error()?;
+            Ok(state)
+        },
+        notify,
+    )
+    .await?;
     metrics.start_exporter_with(&state)?;
 
-    let rpc = Arc::new(Mutex::new(rpc));
     let current_state = Arc::new(RwLock::new(state));
     let block_explorer = config
         .block_explorer
