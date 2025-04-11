@@ -12,7 +12,9 @@ use clap::Parser;
 use config::AppConfig;
 use error::AsRetryError;
 use metrics::MetricsExporter;
+use regex::Regex;
 use rpc::Rpc;
+use slack_hook::{PayloadBuilder, Slack, SlackLink, SlackText, SlackTextContent};
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 use tokio_retry2::{strategy::ExponentialBackoff, Retry};
@@ -22,8 +24,6 @@ fn notify(err: &std::io::Error, duration: std::time::Duration) {
         tracing::warn!("Error {err:?} occurred at {duration:?}");
     }
 }
-
-use slack_hook::{PayloadBuilder, Slack, SlackLink, SlackTextContent};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -39,7 +39,7 @@ async fn main() -> anyhow::Result<()> {
     };
     let last_block_height = config.last_block_height;
 
-    // Check the given chain id matchs the one reported by the rpc
+    // Check the given chain id matches the one reported by the rpc
     let chain_id = rpc.get_chain_id().await?;
     match config.chain_id.as_ref() {
         Some(expected_chain_id) if &chain_id != expected_chain_id => {
@@ -62,7 +62,8 @@ async fn main() -> anyhow::Result<()> {
     let current_state = Arc::new(RwLock::new(state));
     let block_explorer = config
         .block_explorer
-        .unwrap_or("https://explorer75.org/namada/blocks/".to_string());
+        .unwrap_or("https://explorer75.org/namada".to_string());
+    let re = Regex::new(r"<([^< ]+)\|([^> ]+)>").unwrap();
 
     loop {
         if Retry::spawn_notify(
@@ -86,24 +87,46 @@ async fn main() -> anyhow::Result<()> {
 
                     let alerts = checks.run_checks(&[&pre_state, &post_state]);
                     if !alerts.is_empty() {
-                        let mut text = vec![
-                            SlackTextContent::Text(":rotating_light: Alert at height:".into()),
-                            SlackTextContent::Link(SlackLink::new(
-                                format!("{}/{}", block_explorer, block_height).as_str(),
-                                format!("{}", block_height).as_str(),
-                            )),
-                            SlackTextContent::Text("\n".into()),
-                        ];
-                        
+                        let mut alert_content = vec![];
+                        alert_content.push(SlackTextContent::Text(SlackText::new(format!(
+                            ":bricks: {} - Alerts at height:",
+                            config.chain_id.clone().unwrap()
+                        ))));
+                        alert_content.push(SlackTextContent::Link(SlackLink::new(
+                            &format!("{}/blocks/{}", block_explorer, block_height),
+                            &block_height.to_string(),
+                        )));
+                        alert_content.push(SlackTextContent::Text(SlackText::new("\n")));
+
                         for alert in alerts {
-                            text.push(SlackTextContent::Text(format!("{alert}\n").into()));
+                            let mut last_end = 0;
+                            for cap in re.captures_iter(&alert) {
+                                let m = cap.get(0).unwrap();
+                                // Add text between matches
+                                if m.start() > last_end {
+                                    alert_content.push(SlackTextContent::Text(SlackText::new(
+                                        &alert[last_end..m.start()],
+                                    )));
+                                }
+                                // Add capture groups
+                                let url = cap.get(1).map_or("", |m| m.as_str());
+                                let text = cap.get(2).map_or("", |m| m.as_str());
+                                alert_content
+                                    .push(SlackTextContent::Link(SlackLink::new(url, text)));
+                                last_end = m.end();
+                            }
+
+                            // Add remaining text after last match
+                            if last_end < alert.len() {
+                                alert_content.push(SlackTextContent::Text(SlackText::new(
+                                    &alert[last_end..],
+                                )));
+                            }
                         }
-                        text.push(SlackTextContent::Text("\n".into()));
                         let payload = PayloadBuilder::new()
-                            .text(text.as_slice())
+                            .text(alert_content.as_slice())
                             .build()
                             .expect("we know this payload is valid");
-
                         if config.slack.is_some() {
                             // send alerts to slack
                             let slack = Slack::new(config.slack.as_ref().unwrap()).unwrap();

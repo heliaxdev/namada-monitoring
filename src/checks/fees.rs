@@ -81,7 +81,7 @@ impl FeeCheck {
                 },
             );
             //https://github.com/Luminara-Hub/namada-ecosystem/blob/main/user-and-dev-tools/testnet/housefire/explorers.json
-            self.explorer = "https://explorer75.org/namada-campfire/tx/".to_string();
+            self.explorer = "https://explorer75.org/namada-campfire/tx".to_string();
         }
 
         if chain_id == "housefire-alpaca.cc0d3e0c033be" {
@@ -177,7 +177,7 @@ impl FeeCheck {
                 },
             );
             self.explorer =
-                "https://namada-explorer.sproutstake.space/test/transactions/".to_string();
+                "https://namada-explorer.sproutstake.space/test/transactions".to_string();
         }
 
         if chain_id == "namada.5f5de2dd1b88cba30586420" {
@@ -185,52 +185,52 @@ impl FeeCheck {
                 "tnam1q9gr66cvu4hrzm0sd5kmlnjje82gs3xlfg3v6nu7".to_string(),
                 FeeThreshold {
                     name: "nam".to_string(),
-                    value: 0.0,
+                    value: 0.05,
                 },
             );
             self.thresholds.insert(
                 "tnam1p5z5538v3kdk3wdx7r2hpqm4uq9926dz3ughcp7n".to_string(),
                 FeeThreshold {
                     name: "transfer/channel-0/stuatom".to_string(),
-                    value: 0.0,
+                    value: 0.05,
                 },
             );
             self.thresholds.insert(
                 "tnam1p4px8sw3am4qvetj7eu77gftm4fz4hcw2ulpldc7".to_string(),
                 FeeThreshold {
                     name: "transfer/channel-0/stuosmo".to_string(),
-                    value: 0.0,
+                    value: 0.5,
                 },
             );
             self.thresholds.insert(
                 "tnam1ph6xhf0defk65hm7l5ursscwqdj8ehrcdv300u4g".to_string(),
                 FeeThreshold {
                     name: "transfer/channel-0/stutia".to_string(),
-                    value: 0.0,
+                    value: 0.05,
                 },
             );
             self.thresholds.insert(
                 "tnam1p5z8ruwyu7ha8urhq2l0dhpk2f5dv3ts7uyf2n75".to_string(),
                 FeeThreshold {
                     name: "transfer/channel-1/uosmo".to_string(),
-                    value: 0.0,
+                    value: 0.5,
                 },
             );
             self.thresholds.insert(
                 "tnam1pkg30gnt4q0zn7j00r6hms4ajrxn6f5ysyyl7w9m".to_string(),
                 FeeThreshold {
                     name: "transfer/channel-2/uatom".to_string(),
-                    value: 0.0,
+                    value: 0.05,
                 },
             );
             self.thresholds.insert(
                 "tnam1pklj3kwp0cpsdvv56584rsajty974527qsp8n0nm".to_string(),
                 FeeThreshold {
                     name: "transfer/channel-3/utia".to_string(),
-                    value: 0.0,
+                    value: 0.05,
                 },
             );
-            self.explorer = "https://explorer75.org/namada/tx/".to_string();
+            self.explorer = "https://explorer75.org/namada/tx".to_string();
         }
     }
 
@@ -267,15 +267,13 @@ impl CheckTrait for FeeCheck {
             }
             let gas_token_name = fee_threshold.name.clone();
 
-            let summary = format!("💸 {}Wrapper with {} inner TXs {} paid {} {} which is more than the alert configured threshold {}. Link: {}{}",
+            let summary = format!("💸 {}  <{}/{}|WrapperTx> with {} inners paid {} {} which is more than the alert configured threshold {}",
                 if tx.atomic { "Atomic" } else { "" },
+                self.explorer, tx.id,
                 tx.inners.len(),
-                tx.id,
                 fee,
                 gas_token_name,
                 fee_threshold.value * 10.0,
-                self.explorer,
-                tx.id
             );
             alerts.push(summary);
         }

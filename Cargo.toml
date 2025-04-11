@@ -29,6 +29,7 @@ subtle-encoding = "0.5.1"
 thiserror = "1.0.56"
 tokio-retry2 = { version = "0.5", features = ["jitter", "tracing"] }
 slack-hook = { version = "0.9.1" } #, features = ["blocking"] }
+regex = "1.11.1"
 
 [build-dependencies]
 vergen = { version = "8.0.0", features = ["build", "git", "gitcl"] }

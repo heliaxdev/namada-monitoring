@@ -27,10 +27,7 @@ use transfers::Transfers;
 use validator::ValidatorState;
 use voting_power::VotingPower;
 
-use crate::{
-    config::AppConfig,
-    state::State,
-};
+use crate::{config::AppConfig, state::State};
 use anyhow::{Context, Result};
 use prometheus_exporter::prometheus::Registry;
 

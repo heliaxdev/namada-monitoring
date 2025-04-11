@@ -4001,6 +4001,7 @@ dependencies = [
  "lru",
  "namada_sdk",
  "prometheus_exporter",
+ "regex",
  "reqwest 0.11.27",
  "serde",
  "serde_json",
