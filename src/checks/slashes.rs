@@ -15,9 +15,7 @@ impl CheckTrait for SlashCheck {
             match evidence {
                 evidence::Evidence::DuplicateVote(duplicate_vote_evidence) => {
                     let duplicate_vote_evidence_description = format!(
-                        "Duplicate vote evidence found. Total power: {}. 
-                        Validator {} voted {} at height {}.
-                        Validator {} voted {} at height {}.",
+                        "✂️ Duplicate vote evidence found. Total power: {}. Validator {} voted {} at height {}. Validator {} voted {} at height {}.",
                         duplicate_vote_evidence.total_voting_power,
                         duplicate_vote_evidence.vote_a.validator_address,
                         duplicate_vote_evidence.vote_a.vote_type,
@@ -30,11 +28,7 @@ impl CheckTrait for SlashCheck {
                 }
                 evidence::Evidence::LightClientAttack(light_client_attack_evidence) => {
                     let light_client_attack_evidence_description = format!(
-                        "Light client attack evidence found. Total power: {}. 
-                        Conflicting block height: {}.
-                        Conflicting block proposer: {}. 
-                        Common height: {}. 
-                        Byzantine validators: {:?}.",
+                        "✂️ Light client attack evidence found. Total power: {}. Conflicting block height: {}. Conflicting block proposer: {}. Common height: {}. Byzantine validators: {:?}.",
                         light_client_attack_evidence.total_voting_power,
                         light_client_attack_evidence
                             .conflicting_block

@@ -267,9 +267,10 @@ impl CheckTrait for FeeCheck {
             // total fee > 60x default_gas
             // num_inners > 10
 
-            if fee / tx.inners.len() as f64 > 10.0 * fee_threshold.value && fee > 60.0 * fee_threshold.value
-                { 
-                let summary = format!("💸💸 {}  <{}/{}|WrapperTx> with {} inners paid {}{} in total and {}{} in average which is more than both the total threshold {}{} the average threshold {}{}.",
+            if fee / tx.inners.len() as f64 > 10.0 * fee_threshold.value
+                && fee > 60.0 * fee_threshold.value
+            {
+                let summary = format!("💸💸 {}  <{}/{}|WrapperTx> with {} inners paid a total fee of {} {} and average fee of {} {} which is more than both the total threshold {} {} the average threshold {} {}.",
                     if tx.atomic { "Atomic" } else { "" },
                     self.explorer, tx.id,
                     tx.inners.len(),
@@ -283,19 +284,21 @@ impl CheckTrait for FeeCheck {
                     gas_token_name
                 );
                 alerts.push(summary);
-            }else if fee / tx.inners.len() as f64 > 10.0 * fee_threshold.value {
-                let summary = format!("💸 {}  <{}/{}|WrapperTx> with {} inners paid {}{} which is more than both the average threshold {}{}",
+            } else if fee / tx.inners.len() as f64 > 10.0 * fee_threshold.value {
+                let summary = format!("💸 {}  <{}/{}|WrapperTx> with {} inners paid a total fee of {} {} and an average fee of {} {} which is more than the average threshold {} {}",
                     if tx.atomic { "Atomic" } else { "" },
                     self.explorer, tx.id,
                     tx.inners.len(),
                     fee,
                     gas_token_name,
+                    fee / tx.inners.len() as f64,
+                    gas_token_name,
                     10.0 * fee_threshold.value,
                     gas_token_name
                 );
                 alerts.push(summary);
-            } else if  fee > 60.0 * fee_threshold.value{
-                let summary = format!("💸 {}  <{}/{}|WrapperTx> with {} inners paid {}{} which is more than the total threshold {}{}",
+            } else if fee > 60.0 * fee_threshold.value {
+                let summary = format!("💸 {}  <{}/{}|WrapperTx> with {} inners paid a total fee of {} {} which is more than the total threshold {} {}",
                     if tx.atomic { "Atomic" } else { "" },
                     self.explorer, tx.id,
                     tx.inners.len(),
@@ -306,8 +309,6 @@ impl CheckTrait for FeeCheck {
                 );
                 alerts.push(summary);
             }
-
-
         }
         alerts
     }
