@@ -267,7 +267,17 @@ impl CheckTrait for FeeCheck {
             // total fee > 60x default_gas
             // num_inners > 10
 
-            if fee / tx.inners.len() as f64 > 10.0 * fee_threshold.value
+            if tx.inners.len() == 1 && fee > 10.0 * fee_threshold.value {
+                let summary = format!("💸 {}  <{}/{}|WrapperTx> with a sinle inner tx paid a total fee of {} {} which is more than the alert threshold {} {}.",
+                    if tx.atomic { "Atomic" } else { "" },
+                    self.explorer, tx.id,
+                    fee,
+                    gas_token_name,
+                    10.0 * fee_threshold.value,
+                    gas_token_name
+                );
+                alerts.push(summary);
+            } else if fee / tx.inners.len() as f64 > 10.0 * fee_threshold.value
                 && fee > 60.0 * fee_threshold.value
             {
                 let summary = format!("💸💸 {}  <{}/{}|WrapperTx> with {} inners paid a total fee of {} {} and average fee of {} {} which is more than both the total threshold {} {} the average threshold {} {}.",

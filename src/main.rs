@@ -121,7 +121,9 @@ async fn main() -> anyhow::Result<()> {
                                     &alert[last_end..],
                                 )));
                             }
+                            alert_content.push(SlackTextContent::Text(SlackText::new("\n")));
                         }
+
                         let payload = PayloadBuilder::new()
                             .text(alert_content.as_slice())
                             .build()
