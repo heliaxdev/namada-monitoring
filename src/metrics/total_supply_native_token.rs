@@ -32,10 +32,8 @@ impl MetricTrait for TotalSupplyNativeToken {
             .inc_by(state.get_total_supply_native_token());
     }
 
-    fn update(&self, pre_state: &State, post_state: &State) {
-        self.total_supply_native_token.inc_by(
-            post_state.get_total_supply_native_token() - pre_state.get_total_supply_native_token(),
-        );
+    fn update(&self, _pre_state: &State, post_state: &State) {
+        self.reset(post_state);
     }
 }
 

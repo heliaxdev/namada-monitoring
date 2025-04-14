@@ -1,10 +1,12 @@
 mod fees;
 mod slashes;
 mod tendermint_rs;
+mod total_supply;
 
 use fees::FeeCheck;
 use slashes::SlashCheck;
 use tendermint_rs::TendermintRsCheck;
+use total_supply::TotalSupplyCheck;
 
 pub use crate::config::AppConfig;
 pub use crate::state::State;
@@ -24,6 +26,7 @@ impl CheckExporter {
             Box::new(FeeCheck::new(config)),
             Box::new(SlashCheck::default()),
             Box::new(TendermintRsCheck::default()),
+            Box::new(TotalSupplyCheck::default()),
         ];
         Self { checks }
     }
