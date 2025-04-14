@@ -44,14 +44,13 @@ impl CheckTrait for TendermintRsCheck {
                                     let mut address_set = HashSet::new();
                                     for val in header.validator_set.validators() {
                                         if address_set.contains(&val.address) {
-                                            tracing::info!("Validator already exists in the validator set light client attack: {:?} !!!!!!!!!!!!!!!!!!!!!" , val.address);
-                                            // make descriptive alert text for the detection of an attack attempt
+                                            tracing::info!("CreateClient:: Validator already exists in the validator set light client attack: {:?} !!!!!!!!!!!!!!!!!!!!!" , val.address);
                                             let signed_header = &header.signed_header;
                                             let alert_text = format!(
-                                                "💥 Tendermint rs attack attempt detected in tx {}!
-                                                Validator {:?} from chain {} is repeated in the validator set on a CreateClient IBC.",
+                                                "💥 Tendermint rs attack attempt detected in CreateClient IBC tx {} ! Validator {:?} from chain {} is repeated in the validator set.",
                                                 tx.id, val.address, signed_header.header.chain_id
                                             );
+
                                             results.push(alert_text);
                                         } else {
                                             address_set.insert(val.address);
@@ -67,12 +66,10 @@ impl CheckTrait for TendermintRsCheck {
                                     let mut address_set = HashSet::new();
                                     for val in header.validator_set.validators() {
                                         if address_set.contains(&val.address) {
-                                            tracing::info!("Validator already exists: {:?} !!!!!!!!!!!!!!!!!!!!!" , val.address);
-                                            // make descriptive alert text for the detection of an attack attempt
+                                            tracing::info!("CreateClient:: Validator already exists in the validator set light client attack: {:?} !!!!!!!!!!!!!!!!!!!!!" , val.address);
                                             let signed_header = &header.signed_header;
                                             let alert_text = format!(
-                                                "💥 Tendermint rs attack attempt detected in tx {}!
-                                                Validator {:?} from chain {} is repeated in the validator set on an UpdateClient IBC.",
+                                                "💥 Tendermint rs attack attempt detected in UpdateClient IBC tx {} ! Validator {:?} from chain {} is repeated in the validator set.",
                                                 tx.id, val.address, signed_header.header.chain_id
                                             );
                                             results.push(alert_text);
