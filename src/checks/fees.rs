@@ -248,24 +248,73 @@ impl CheckTrait for FeeCheck {
         let block = state.get_last_block();
         let mut alerts = vec![];
         for tx in &block.transactions {
-            let amount_per_gas = tx.fee.amount_per_gas_unit.parse::<f64>();
-            let gas_limit = tx.fee.gas.parse::<f64>();
+            let amount_per_gas = tx
+                .fee
+                .amount_per_gas_unit
+                .parse::<f64>()
+                .unwrap_or_default();
+            let gas_limit = tx.fee.gas.parse::<f64>().unwrap_or_default();
+            let gas_used = tx.fee.gas_used as f64;
 
-            let fee = match (amount_per_gas, gas_limit) {
-                (Ok(amount_per_gas), Ok(gas_limit)) => amount_per_gas * gas_limit,
-                _ => continue,
-            };
+            // If no gas used continue
+            if gas_used == 0.0 {
+                let summary = format!(
+                    "💸 {}  <{}/{}|WrapperTx> with {} inners used ZERO gas units of {}.",
+                    if tx.atomic { "Atomic" } else { "" },
+                    self.explorer,
+                    tx.id,
+                    tx.inners.len(),
+                    tx.fee.gas_token,
+                );
+                alerts.push(summary);
+                continue;
+            }
+            // Amount per gas is zero
+            if amount_per_gas == 0.0 {
+                let summary = format!(
+                    "💸 {}  <{}/{}|WrapperTx> with {} inners used ZERO amount per gas units of {}.",
+                    if tx.atomic { "Atomic" } else { "" },
+                    self.explorer,
+                    tx.id,
+                    tx.inners.len(),
+                    tx.fee.gas_token,
+                );
+                alerts.push(summary);
+                continue;
+            }
+
+            if gas_limit < gas_used {
+                let summary = format!("💸 {}  <{}/{}|WrapperTx> with {} inners used more gas units than the limit {} > {}.",
+                    if tx.atomic { "Atomic" } else { "" },
+                    self.explorer, tx.id,
+                    tx.inners.len(),
+                    gas_used,
+                    gas_limit,
+                );
+                alerts.push(summary);
+            }
 
             // Using the thresholds in self check if any tx paid more than the threshold considering the token matches
             let fee_threshold = self.thresholds.get(&tx.fee.gas_token);
             if fee_threshold.is_none() {
+                // not threshold configured for token
+                let summary = format!("💸 {}  <{}/{}|WrapperTx> with {} inners paid a total fee of {} {} which is not configured in the alert thresholds.",
+                    if tx.atomic { "Atomic" } else { "" },
+                    self.explorer, tx.id,
+                    tx.inners.len(),
+                    gas_used * amount_per_gas,
+                    tx.fee.gas_token,
+                );
+                alerts.push(summary);
                 continue;
             }
+
             let fee_threshold = fee_threshold.unwrap();
             let gas_token_name = fee_threshold.name.clone();
             // total fee / num_inners > 10x default_gas
             // total fee > 60x default_gas
             // num_inners > 10
+            let fee = gas_used * amount_per_gas;
 
             if tx.inners.len() == 1 && fee > 10.0 * fee_threshold.value {
                 let summary = format!("💸 {}  <{}/{}|WrapperTx> with a sinle inner tx paid a total fee of {} {} which is more than the alert threshold {} {}.",
