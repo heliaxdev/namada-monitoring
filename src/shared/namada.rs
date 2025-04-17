@@ -640,6 +640,7 @@ impl From<&TendermintBlockResultResponse> for BlockResult {
 
 impl From<TendermintBlockResultResponse> for BlockResult {
     fn from(value: TendermintBlockResultResponse) -> Self {
+        println!("Getting block results from Tendermint {:?}", value);
         let begin_events = value
             .begin_block_events
             .unwrap_or_default()

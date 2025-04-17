@@ -248,6 +248,7 @@ impl CheckTrait for FeeCheck {
         let block = state.get_last_block();
         let mut alerts = vec![];
         for tx in &block.transactions {
+            println!("Status {:?}", tx.status);
             let amount_per_gas = tx
                 .fee
                 .amount_per_gas_unit
@@ -283,7 +284,8 @@ impl CheckTrait for FeeCheck {
                 continue;
             }
 
-            if gas_limit < gas_used {
+            // If out of gass it uses +1 gas
+            if gas_limit+1.0 < gas_used {
                 let summary = format!("💸 {}  <{}/{}|WrapperTx> with {} inners used more gas units than the limit {} > {}.",
                     if tx.atomic { "Atomic" } else { "" },
                     self.explorer, tx.id,
