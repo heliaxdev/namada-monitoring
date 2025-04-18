@@ -2,7 +2,7 @@ use super::{AppConfig, CheckTrait, State};
 use std::collections::HashMap;
 
 
-const MICRO:usize = 1000000;
+const MICRO:f64 = 1000000.0;
 
 type Token = String;
 struct DefaultFeeThreshold {
