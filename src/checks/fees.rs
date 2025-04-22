@@ -1,8 +1,7 @@
 use super::{AppConfig, CheckTrait, State};
 use std::collections::HashMap;
 
-
-const MICRO:f64 = 1000000.0;
+const MICRO: f64 = 1000000.0;
 
 type Token = String;
 struct DefaultFeeThreshold {
@@ -288,7 +287,7 @@ impl CheckTrait for FeeCheck {
             }
 
             // If out of gass it uses +1 gas
-            if gas_limit+1.0 < gas_used {
+            if gas_limit + 1.0 < gas_used {
                 let summary = format!("💸 {}  <{}/{}|WrapperTx> with {} inners used more gas units than the limit {} > {}.",
                     if tx.atomic { "Atomic" } else { "" },
                     self.explorer, tx.id,
