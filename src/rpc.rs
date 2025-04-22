@@ -5,7 +5,7 @@ use crate::shared::{
 use crate::state::State;
 use anyhow::Context;
 use futures::FutureExt;
-use namada_sdk::tendermint::block::Height as TenderHeight;
+use namada_sdk::{borsh::BorshDeserialize, state::KeySeg, tendermint::block::Height as TenderHeight, token};
 use namada_sdk::{
     address::Address as NamadaAddress,
     hash::Hash,
@@ -77,7 +77,8 @@ impl Rpc {
         }
 
         let max_block_time_estimate = self.query_max_block_time_estimate().await?;
-        let total_supply_native = self.query_total_supply(&native_token).await?;
+        let total_supply_native = self.get_total_supply_at_height(&native_token, height).await?;
+        // TODO: subtract PGF balance which for effective total supply  
 
         // flamegraph says this is time consuming
         let (future_bonds, future_unbonds) = self.query_future_bonds_and_unbonds(epoch).await?;
@@ -429,4 +430,66 @@ impl Rpc {
         }
         None
     }
+
+
+    pub async fn read_storage_at_height(
+        &self,
+        key: &Key,
+        height: Height,
+    ) -> anyhow::Result<Option<Vec<u8>>> {
+        let futures = self
+            .get_clients()
+            .map(|client| {
+                rpc::query_storage_value_bytes(client, key, Some(BlockHeight(height)), false)
+                    .boxed()
+            })
+            .collect();
+
+        let res = self.concurrent_requests(futures).await;
+
+        let result = res.context("Should be able to query storage at height");
+        match result {
+            Ok((Some(value), _)) => Ok(Some(value)),
+            Ok((None, _)) => Err(anyhow::anyhow!("Error querying storage: {:?}", key)),
+            Err(e) => Err(anyhow::anyhow!("Error querying storage: {:?}", e)),
+        }
+    }
+
+
+    // this uses the read_storage_at_height function to query the key minted_balance_key(token) and in the case of the native togen it takes the  PGF balance into account
+    pub async fn get_total_supply_at_height(
+        &self,
+        token: &str,
+        height: Height,
+    ) -> anyhow::Result<u64> {
+        let key = self.get_minted_key(token);
+        let value = self.read_storage_at_height(&key, height).await?;
+        match value {
+            Some(value) => {
+                let amount = token::Amount::try_from_slice(&value)
+                    .unwrap_or_else(|_| token::Amount::zero());
+                Ok(amount.raw_amount().as_u64())
+            }
+            None => Err(anyhow::anyhow!("Error querying storage: {:?}", key)),
+        }
+    }
+
+    pub fn get_minted_key(&self, token_addr: &str) -> Key {
+        /// Key segment for minted balance
+        pub const MINTED_STORAGE_KEY: &str = "minted";
+        /// Key segment for a balance key
+        pub const BALANCE_STORAGE_KEY: &str = "balance";
+
+        let token_addr: namada_sdk::address::Address = token_addr.parse().unwrap();
+        Key::from(
+            namada_sdk::address::Address::Internal(namada_sdk::address::InternalAddress::Multitoken).to_db_key(),
+        )
+        .push(&token_addr.to_db_key())
+        .expect("Cannot obtain a storage key")
+        .push(&BALANCE_STORAGE_KEY.to_owned())
+        .expect("Cannot obtain a storage key")
+        .push(&MINTED_STORAGE_KEY.to_owned())
+        .expect("Cannot obtain a storage key")
+    }
+
 }
