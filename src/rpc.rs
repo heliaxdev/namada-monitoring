@@ -1,21 +1,22 @@
-use anyhow::Context;
-use futures::FutureExt;
-use namada_sdk::{
-    address::Address as NamadaAddress,
-    hash::Hash,
-    io::Client,
-    proof_of_stake::types::ValidatorState,
-    rpc,
-    state::{BlockHeight, Epoch as NamadaEpoch, Key},
-    tendermint::node::Id,
-};
-use std::{future::Future, str::FromStr};
-use tendermint_rpc::{endpoint::net_info::PeerInfo, HttpClient, Url};
-
 use crate::shared::{
     checksums::Checksums,
     namada::{Address, Block, BlockResult, Epoch, Height, Validator},
 };
+use anyhow::Context;
+use futures::FutureExt;
+use namada_sdk::tendermint::block::Height as TenderHeight;
+use namada_sdk::{
+    address::Address as NamadaAddress,
+    hash::Hash,
+    proof_of_stake::types::ValidatorState,
+    rpc,
+    state::{BlockHeight, Epoch as NamadaEpoch, Key},
+    tendermint::node::Id,
+    tendermint_rpc::Client,
+};
+use std::{future::Future, str::FromStr};
+use tendermint_rpc::client::CompatMode;
+use tendermint_rpc::{endpoint::net_info::PeerInfo, HttpClient, HttpClientUrl, Url};
 
 pub struct Rpc {
     pub clients: Vec<HttpClient>,
@@ -28,10 +29,21 @@ impl Rpc {
                 .iter()
                 .map(|url| {
                     let url = Url::from_str(url).unwrap();
-                    HttpClient::new(url).unwrap()
+                    HttpClient::builder(HttpClientUrl::try_from(url).unwrap())
+                        .compat_mode(CompatMode::V0_37)
+                        .build()
+                        .unwrap()
                 })
                 .collect(),
         }
+    }
+
+    pub async fn get_abci_info(&self) -> anyhow::Result<()> {
+        for client in &self.clients {
+            let abci_info = client.abci_info().await?;
+            println!("abci_info: {:?}", abci_info);
+        }
+        Ok(())
     }
 
     pub async fn get_chain_id(&self) -> anyhow::Result<String> {
@@ -120,24 +132,41 @@ impl Rpc {
             .context("Should be able to query for block")
     }
 
+    pub async fn query_count_slashes_before(&self, height: Height) -> anyhow::Result<usize> {
+        // To count the slashes at height we need to get the slashes for the validators
+        // at the tip and filter the slashes that happened after the target height :chefkiss:
+        let pos_query = namada_sdk::queries::RPC.vp().pos();
+        let futures = self
+            .clients
+            .iter()
+            .map(|client| Box::pin(pos_query.slashes(client)))
+            .collect();
+
+        let res = self.concurrent_requests(futures).await;
+
+        res.map(|response| {
+            response
+                .into_iter()
+                .filter(|(_, slashes)| slashes.iter().any(|slash| slash.block_height < height))
+                .count()
+        })
+        .context("Should be able to query for block")
+    }
+
     pub async fn query_block(
         &self,
         block_height: Height,
         checksums: &Checksums,
         epoch: Epoch,
     ) -> anyhow::Result<Block> {
-        let block_futures = self
-            .clients
-            .iter()
-            .map(|client| client.block(block_height))
-            .collect();
+        let block_height = TenderHeight::try_from(block_height).unwrap();
+
         let events_futures = self
             .clients
             .iter()
             .map(|client| client.block_results(block_height))
             .collect();
 
-        let res = self.concurrent_requests(block_futures).await;
         let events_res = self.concurrent_requests(events_futures).await;
 
         let events = events_res.map(BlockResult::from).context(format!(
@@ -145,7 +174,15 @@ impl Rpc {
             block_height
         ))?;
 
-        res.map(|response| Block::from(response, events, checksums, epoch))
+        let block_futures = self
+            .clients
+            .iter()
+            .map(|client| client.block(block_height))
+            .collect();
+
+        let block_res = self.concurrent_requests(block_futures).await;
+        block_res
+            .map(|response| Block::from(response, events, checksums, epoch))
             .context(format!(
                 "Should be able to query for block for height: {}",
                 block_height
@@ -333,7 +370,7 @@ impl Rpc {
             })
     }
 
-    async fn concurrent_requests<T, E>(
+    async fn concurrent_requests<T, E: std::fmt::Debug>(
         &self,
         futures: Vec<impl Future<Output = Result<T, E>> + Unpin>,
     ) -> Option<T> {
@@ -342,15 +379,19 @@ impl Rpc {
             .map(|(_idx, value)| value)
     }
 
-    async fn concurrent_requests_idx<T, E>(
+    async fn concurrent_requests_idx<T, E: std::fmt::Debug>(
         &self,
-        mut futures: Vec<impl Future<Output = Result<T, E>> + Unpin>,
+        futures: Vec<impl Future<Output = Result<T, E>> + Unpin>,
     ) -> Option<(usize, T)> {
+        let mut futures = futures;
         while !futures.is_empty() {
             let (result, index, remaining) = futures::future::select_all(futures).await;
             match result {
                 Ok(value) => return Some((index, value)),
-                Err(_) => futures = remaining,
+                Err(e) => {
+                    tracing::error!("Error: {:?}", e);
+                    futures = remaining
+                }
             }
         }
         None

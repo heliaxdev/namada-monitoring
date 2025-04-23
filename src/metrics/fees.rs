@@ -1,42 +1,38 @@
 use crate::state::State;
 /// ## Fees Metric. (fees)
-/// This metric tracks the total transaction fees paid per block and per token. It helps monitor the gas costs of transactions on
+/// This metric tracks the total transaction fees paid per token. It helps monitor the gas costs of transactions on
 /// the network, providing insight into network congestion and transaction fee trends.
 /// * The metric is a counter, meaning it only increases over time.
-/// * Fees are labeled by the block height and the token used for gas payments.
+/// * Fees are labeled by the token used for gas payments.
 
 /// ### Example
 /// ```
-/// # HELP namada_fees Total fees paid per block and per token
+/// # HELP namada_fees Total fees paid per token over time
 /// # TYPE namada_fees counter
-/// namada_fees{height="777604",token="tnam1q9gr66cvu4hrzm0sd5kmlnjje82gs3xlfg3v6nu7",chain_id="housefire-alpaca.cc0d3e0c033be"} 0.5845009999999999
-/// namada_fees{height="777605",token="tnam1q9gr66cvu4hrzm0sd5kmlnjje82gs3xlfg3v6nu7",chain_id="housefire-alpaca.cc0d3e0c033be"} 0.154409
+/// namada_fees{token="tnam1q9gr66cvu4hrzm0sd5kmlnjje82gs3xlfg3v6nu7",chain_id="housefire-alpaca.cc0d3e0c033be"} 0.5845009999999999
+/// namada_fees{token="tnam1q9gr66cvu4hrzm0sd5kmlnjje82gs3xlfg3v6nu7",chain_id="housefire-alpaca.cc0d3e0c033be"} 0.154409
 /// ```
-use prometheus_exporter::prometheus::core::{AtomicF64, GenericCounterVec};
-use prometheus_exporter::prometheus::{CounterVec, Opts, Registry};
+use prometheus_exporter::prometheus::{CounterVec, HistogramOpts, HistogramVec, Opts, Registry};
 
 use super::MetricTrait;
 
 pub struct Fees {
-    /// fees counter
-    fees: GenericCounterVec<AtomicF64>,
+    /// fees counters
+    fees: CounterVec,
+    /// histogram of fees by tx
+    fees_by_tx: HistogramVec,
 }
 
 impl MetricTrait for Fees {
     fn register(&self, registry: &Registry) -> anyhow::Result<()> {
         registry.register(Box::new(self.fees.clone()))?;
+        registry.register(Box::new(self.fees_by_tx.clone()))?;
         Ok(())
     }
 
-    fn reset(&self, _state: &State) {
+    fn reset(&self, state: &State) {
+        let block = state.get_last_block();
         self.fees.reset();
-    }
-
-    fn update(&self, pre_state: &State, post_state: &State) {
-        if pre_state.get_epoch() != post_state.get_epoch() {
-            self.reset(post_state);
-        }
-        let block = post_state.get_last_block();
         for tx in &block.transactions {
             let amount_per_gas = tx.fee.amount_per_gas_unit.parse::<f64>();
             let gas_limit = tx.fee.gas.parse::<f64>();
@@ -49,16 +45,33 @@ impl MetricTrait for Fees {
             self.fees
                 .with_label_values(&[&tx.fee.gas_token])
                 .inc_by(fee);
+
+            self.fees_by_tx
+                .with_label_values(&[&tx.fee.gas_token])
+                .observe(fee);
+            tracing::debug!("Transaction fee: {} {}", fee, tx.fee.gas_token);
         }
+    }
+
+    fn update(&self, _pre_state: &State, post_state: &State) {
+        println!("updating fees");
+        self.reset(post_state);
     }
 }
 
 impl Default for Fees {
     fn default() -> Self {
-        let fees_opts = Opts::new("fees", "Total fees paid per block and per token");
+        let fees_opts = Opts::new("fees", "Total fees paid per token over time");
         let fees = CounterVec::new(fees_opts, &["token"])
-            .expect("unable to create int counter for transaction kinds");
+            .expect("unable to create gauge vector for transaction fees");
 
-        Self { fees }
+        let fees_by_tx_opts = HistogramOpts::new("fees_by_tx", "Total fees paid per transaction")
+            .buckets(vec![
+                0.01, 0.02, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0,
+            ]);
+        let fees_by_tx = HistogramVec::new(fees_by_tx_opts, &["token"])
+            .expect("unable to create histogram vec for transaction fees by tx");
+
+        Self { fees, fees_by_tx }
     }
 }

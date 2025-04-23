@@ -1,3 +1,4 @@
+mod alert;
 mod block_height;
 mod block_time;
 mod bonds;
@@ -81,6 +82,7 @@ impl MetricsExporter {
             Box::<Signatures>::default() as Box<dyn MetricTrait>,
             Box::<Slashes>::default() as Box<dyn MetricTrait>,
             Box::<ValidatorState>::default() as Box<dyn MetricTrait>,
+            Box::new(alert::Alert::new(config)) as Box<dyn MetricTrait>,
         ];
 
         Self::new(config, metrics)

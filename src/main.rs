@@ -35,19 +35,19 @@ async fn get_checksums_at_height(rpc: &Rpc, height: u64) -> anyhow::Result<Check
     Ok(checksums)
 }
 
-async fn get_state_from_rpc(rpc: &Rpc, height: u64) -> anyhow::Result<State> {
-    let checksums = get_checksums_at_height(rpc, height).await?;
+async fn get_state_from_rpc(rpc: &Rpc, height: u64, checksums: Checksums) -> anyhow::Result<State> {
     let native_token = rpc.query_native_token().await.into_retry_error()?;
-
     let epoch = rpc
         .query_current_epoch(height)
         .await
         .into_retry_error()?
         .unwrap_or(0);
+
     let block = rpc
         .query_block(height, &checksums, epoch)
         .await
         .into_retry_error()?;
+
     if block.height != height {
         return Err(anyhow::anyhow!(
             "Block height mismatch: expected {}, got {}",
@@ -55,6 +55,7 @@ async fn get_state_from_rpc(rpc: &Rpc, height: u64) -> anyhow::Result<State> {
             block.height
         ));
     }
+
     let max_block_time_estimate = rpc
         .query_max_block_time_estimate()
         .await
@@ -68,7 +69,7 @@ async fn get_state_from_rpc(rpc: &Rpc, height: u64) -> anyhow::Result<State> {
         .await
         .into_retry_error()?;
     let validators = rpc.query_validators(epoch).await.into_retry_error()?;
-    // let (id, peers) = rpc.query_peers().await.into_retry_error()?;
+
     Ok(State::new(
         block,
         native_token,
@@ -77,7 +78,6 @@ async fn get_state_from_rpc(rpc: &Rpc, height: u64) -> anyhow::Result<State> {
         validators,
         future_bonds,
         future_unbonds,
-        // peers,
     ))
 }
 
@@ -108,11 +108,14 @@ async fn main() -> anyhow::Result<()> {
     let last_block_height = config.last_block_height;
 
     let metrics = MetricsExporter::default_metrics(&config);
-    let state = get_state_from_rpc(&rpc, initial_block_height).await?;
+    let checksums = get_checksums_at_height(&rpc, initial_block_height).await?;
+    let state = get_state_from_rpc(&rpc, initial_block_height, checksums.clone()).await?;
     metrics.reset(&state);
     metrics.start_exporter()?;
 
     let current_state = Arc::new(RwLock::new(state));
+    let current_checksums = Arc::new(RwLock::new(checksums));
+
     loop {
         Retry::spawn_notify(
             retry_strategy.clone(),
@@ -122,13 +125,23 @@ async fn main() -> anyhow::Result<()> {
 
                 // immediate next block
                 let block_height = pre_state.next_block_height();
-                let post_state = get_state_from_rpc(&rpc, block_height)
+                let checksums = current_checksums.read().await.clone();
+                let post_state = get_state_from_rpc(&rpc, block_height, checksums)
                     .await
                     .into_retry_error()?;
+                if post_state.get_epoch() != pre_state.get_epoch() {
+                    // update checksums
+                    *current_checksums.write().await =
+                        get_checksums_at_height(&rpc, initial_block_height)
+                            .await
+                            .into_retry_error()?;
+                }
 
                 if block_height <= last_block_height {
                     // update metrics
                     metrics.update(&pre_state, &post_state);
+                } else {
+                    tracing::info!("Last block height reached: {}", block_height);
                 }
 
                 // post_state is the new current state

@@ -1,5 +1,5 @@
 /// ## Block Height (block_height)
-/// This metric tracks the latest block height of the Namada blockchain. It provides a real-time view of
+/// This metric tracks the latest block height of a Namada blockchain. It provides a real-time view of
 /// block progression, and helps monitor chain liveness and ensure continuous block production.
 /// It is updated at each block by fetching the latest block height from the blockchain state.
 ///
@@ -11,9 +11,9 @@
 /// ```
 ///
 /// ## Alert: Block Height Stalled:
-/// If no blocks are registered in 10 minutes, the block height has stalled. Alert the team to investigate the issue.
+/// If no blocks are registered in 5 minutes, the block height has stalled. Alert the team to investigate the issue.
 /// ```
-/// increase(namada_block_height[10m]) == 0
+/// (time() - min_over_time(time()[5m])) > 300 and (absent_over_time(namada_block_height[5m]) or increase(namada_block_height[5m]) == 0)
 /// ```
 use crate::state::State;
 use anyhow::Result;
