@@ -462,16 +462,23 @@ impl Rpc {
         token: &str,
         height: Height,
     ) -> anyhow::Result<u64> {
+        println!("Getting total supply at height {}", height);
+        // get chainid
+        let chain_id = self.get_chain_id().await?;
+        print!("Chain ID: {}", chain_id);
+
         let key = self.get_minted_key(token);
         let value = self.read_storage_at_height(&key, height).await?;
-        match value {
+        let value = match value {
             Some(value) => {
                 let amount =
                     token::Amount::try_from_slice(&value).unwrap_or_else(|_| token::Amount::zero());
                 Ok(amount.raw_amount().as_u64())
             }
             None => Err(anyhow::anyhow!("Error querying storage: {:?}", key)),
-        }
+        };
+        println!("Value: {:?}", value);
+        value
     }
 
     pub fn get_minted_key(&self, token_addr: &str) -> Key {

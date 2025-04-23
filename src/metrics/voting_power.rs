@@ -10,7 +10,7 @@
 /// # HELP one_third_threshold Number of validators to reach 1/3 of the voting power
 /// # TYPE one_third_threshold gauge
 /// one_third_threshold 5
-
+///
 /// # HELP two_third_threshold Number of validators to reach 2/3 of the voting power
 /// # TYPE two_third_threshold gauge
 /// two_third_threshold 12
