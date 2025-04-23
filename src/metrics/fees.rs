@@ -1,10 +1,9 @@
-use crate::state::State;
 /// ## Fees Metric. (fees)
 /// This metric tracks the total transaction fees paid per token. It helps monitor the gas costs of transactions on
 /// the network, providing insight into network congestion and transaction fee trends.
 /// * The metric is a counter, meaning it only increases over time.
 /// * Fees are labeled by the token used for gas payments.
-
+///
 /// ### Example
 /// ```
 /// # HELP namada_fees Total fees paid per token over time
@@ -12,6 +11,7 @@ use crate::state::State;
 /// namada_fees{token="tnam1q9gr66cvu4hrzm0sd5kmlnjje82gs3xlfg3v6nu7",chain_id="housefire-alpaca.cc0d3e0c033be"} 0.5845009999999999
 /// namada_fees{token="tnam1q9gr66cvu4hrzm0sd5kmlnjje82gs3xlfg3v6nu7",chain_id="housefire-alpaca.cc0d3e0c033be"} 0.154409
 /// ```
+use crate::state::State;
 use prometheus_exporter::prometheus::{CounterVec, HistogramOpts, HistogramVec, Opts, Registry};
 
 use super::MetricTrait;
