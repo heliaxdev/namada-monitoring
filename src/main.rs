@@ -65,7 +65,7 @@ async fn main() -> anyhow::Result<()> {
                 let post_state = rpc
                     .lock()
                     .await
-                    .get_state(initial_block_height)
+                    .get_state(block_height)
                     .await
                     .into_retry_error()?;
 
