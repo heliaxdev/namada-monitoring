@@ -136,14 +136,6 @@ impl Rpc {
         }
     }
 
-    pub async fn get_abci_info(&self) -> anyhow::Result<()> {
-        for client in &self.clients {
-            let abci_info = client.abci_info().await?;
-            println!("abci_info: {:?}", abci_info);
-        }
-        Ok(())
-    }
-
     pub async fn get_chain_id(&self) -> anyhow::Result<String> {
         let mut chain_id = None;
         for client in self.get_clients() {
