@@ -462,11 +462,6 @@ impl Rpc {
         token: &str,
         height: Height,
     ) -> anyhow::Result<u64> {
-        println!("Getting total supply at height {}", height);
-        // get chainid
-        let chain_id = self.get_chain_id().await?;
-        print!("Chain ID: {}", chain_id);
-
         let key = self.get_minted_key(token);
         let value = self.read_storage_at_height(&key, height).await?;
         let value = match value {
