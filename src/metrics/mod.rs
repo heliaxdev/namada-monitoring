@@ -51,12 +51,13 @@ impl MetricsExporter {
             Some("namada".to_string()),
             Some(HashMap::from_iter([(
                 "chain_id".to_string(),
-                config.chain_id.as_ref().unwrap().to_string(),
+                config.chain_id.clone(),
             )])),
         )
         .expect("Failed to create registry");
 
         for metric in &metrics {
+            // TODO: check that it is enabled in the config
             metric
                 .register(&registry)
                 .expect("Failed to register metric");
@@ -96,6 +97,12 @@ impl MetricsExporter {
         builder.with_registry(self.registry.clone());
         builder.start().context("can not start exporter")?;
 
+        Ok(())
+    }
+    pub fn start_exporter_with(&self, state: &State) -> anyhow::Result<()> {
+        self.reset(state);
+        self.start_exporter()
+            .context("can not start exporter with state")?;
         Ok(())
     }
 

@@ -1,5 +1,5 @@
-RUST_STABLE := "1.82.0"
-RUST_NIGTHLY := "nightly-2025-02-05"
+RUST_STABLE := "1.83.0"
+RUST_NIGTHLY := "nightly"
 
 devs:
     rustup toolchain install {{ RUST_STABLE }} --no-self-update --component clippy,rustfmt

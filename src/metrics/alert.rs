@@ -47,7 +47,7 @@ impl MetricTrait for Alert {
                 continue;
             }
             let fee_threshold = fee_threshold.unwrap();
-            if fee < fee_threshold.value {
+            if fee < fee_threshold.value * 10.0 {
                 continue;
             }
             let gas_token_name = fee_threshold.name.clone();
@@ -56,7 +56,7 @@ impl MetricTrait for Alert {
                 block.height,
                 fee,
                 gas_token_name,
-                fee_threshold.value,
+                fee_threshold.value * 10.0,
                 self.explorer,
                 tx.id
             );
@@ -83,7 +83,7 @@ impl Default for Alert {
 impl Alert {
     pub fn new(config: &AppConfig) -> Self {
         let mut instance = Self::default();
-        instance.populate_thresholds(&config.chain_id.clone().unwrap());
+        instance.populate_thresholds(&config.chain_id.clone());
         instance
     }
     fn populate_thresholds(&mut self, chain_id: &str) {

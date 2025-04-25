@@ -1,4 +1,8 @@
+use crate::shared::namada::ibc::core::handler::types::msgs::MsgEnvelope;
+use ibc::clients::tendermint::types::Header as ClientHeader;
+use ibc::core::client::types::msgs::ClientMsg;
 use namada_sdk::borsh::BorshDeserialize;
+use namada_sdk::collections::HashSet;
 use namada_sdk::governance::{InitProposalData, VoteProposalData};
 use namada_sdk::ibc::{self, IbcMessage};
 use namada_sdk::key::common::PublicKey;
@@ -261,9 +265,9 @@ pub struct BatchResults {
 impl From<TxResult<String>> for BatchResults {
     fn from(value: TxResult<String>) -> Self {
         Self {
-            batch_results: value.0.iter().fold(
-                BTreeMap::default(),
-                |mut acc, (tx_hash, result)| {
+            batch_results: value
+                .iter()
+                .fold(BTreeMap::default(), |mut acc, (tx_hash, result)| {
                     let tx_id = tx_hash.to_string();
                     let result = if let Ok(result) = result {
                         result.is_accepted()
@@ -272,10 +276,8 @@ impl From<TxResult<String>> for BatchResults {
                     };
                     acc.insert(tx_id, result);
                     acc
-                },
-            ),
+                }),
             batch_errors: value
-                .0
                 .iter()
                 .fold(BTreeMap::default(), |mut acc, (tx_hash, result)| {
                     let tx_id = tx_hash.to_string().to_uppercase();
@@ -465,6 +467,52 @@ impl Block {
                                     accepted: inner.was_applied,
                                 });
                             }
+                        }
+                    }
+                    InnerKind::IbcMsgTransfer(IbcMessage::Envelope(msg_envelope)) => {
+                        match msg_envelope.as_ref() {
+                            MsgEnvelope::Client(client_msg) => {
+                                match client_msg {
+                                    ClientMsg::CreateClient(msg_create_client) => {
+                                        let header = ClientHeader::try_from(
+                                            msg_create_client.consensus_state.clone(),
+                                        )
+                                        .unwrap();
+                                        let mut address_set = HashSet::new();
+                                        for val in header.validator_set.validators() {
+                                            if address_set.contains(&val.address) {
+                                                println!("Validator already exists: {:?} !!!!!!!!!!!!!!!!!!!!!" , val.address);
+                                            } else {
+                                                address_set.insert(val.address);
+                                            }
+                                        }
+                                        tracing::info!("Ibc Client created with {} validators (all different address)_", address_set.len());
+                                    }
+                                    ClientMsg::UpdateClient(msg_update_client) => {
+                                        //println!("BBB msg_update_client.clientmessage: {:?}", msg_update_client.client_message);
+
+                                        let header = ClientHeader::try_from(
+                                            msg_update_client.client_message.clone(),
+                                        )
+                                        .unwrap();
+                                        let mut address_set = HashSet::new();
+                                        for val in header.validator_set.validators() {
+                                            if address_set.contains(&val.address) {
+                                                println!("Validator already exists: {:?} !!!!!!!!!!!!!!!!!!!!!" , val.address);
+                                            } else {
+                                                address_set.insert(val.address);
+                                            }
+                                        }
+                                        tracing::info!("Ibc Client updated with {} validators (all different address)", address_set.len());
+                                    }
+                                    ClientMsg::Misbehaviour(_msg_submit_misbehaviour) => {}
+                                    ClientMsg::UpgradeClient(_msg_upgrade_client) => {}
+                                    ClientMsg::RecoverClient(_msg_recover_client) => {}
+                                }
+                            }
+                            MsgEnvelope::Connection(_connection_msg) => {}
+                            MsgEnvelope::Channel(_channel_msg) => {}
+                            MsgEnvelope::Packet(_packet_msg) => {}
                         }
                     }
                     _ => {}

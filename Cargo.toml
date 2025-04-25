@@ -9,10 +9,10 @@ build = "build.rs"
 [dependencies]
 clap = { version = "4.4.2", features = ["derive", "env"] }
 clap-verbosity-flag = "2.1.1"
-namada_sdk = { version = "0.47.1", default-features = false, features = ["std", "async-send", "download-params"] }
-tendermint-config = "0.40.1"
-tendermint-rpc = { version = "0.40.1", features = ["http-client"] }
-tokio = {version = "1.8.2", default-features = false}
+namada_sdk = { version = "0.149.1", default-features = false, features = ["std", "async-send", "download-params"] }
+tendermint-config = "0.40.3"
+tendermint-rpc = { version = "0.40.3", features = ["http-client"] }
+tokio = {version = "1.8", default-features = false}
 async-trait = "0.1.74"
 reqwest = { version = "0.11.22", features = ["json"] }
 serde = { version = "1.0.197", features = ["derive"] }
@@ -28,6 +28,8 @@ prometheus_exporter = "0.8.5"
 subtle-encoding = "0.5.1"
 thiserror = "1.0.56"
 tokio-retry2 = { version = "0.5", features = ["jitter", "tracing"] }
+slack-hook = { version = "0.9.1" }
+regex = "1.11.1"
 
 [build-dependencies]
 vergen = { version = "8.0.0", features = ["build", "git", "gitcl"] }

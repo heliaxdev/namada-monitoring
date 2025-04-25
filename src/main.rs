@@ -1,3 +1,4 @@
+pub mod checks;
 pub mod config;
 pub mod error;
 pub mod log;
@@ -6,15 +7,16 @@ pub mod rpc;
 pub mod shared;
 pub mod state;
 
+use checks::CheckExporter;
 use clap::Parser;
 use config::AppConfig;
 use error::AsRetryError;
 use metrics::MetricsExporter;
+use regex::Regex;
 use rpc::Rpc;
-use shared::checksums::Checksums;
-use state::State;
+use slack_hook::{PayloadBuilder, Slack, SlackLink, SlackText, SlackTextContent};
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 use tokio_retry2::{strategy::ExponentialBackoff, Retry};
 
 fn notify(err: &std::io::Error, duration: std::time::Duration) {
@@ -23,141 +25,130 @@ fn notify(err: &std::io::Error, duration: std::time::Duration) {
     }
 }
 
-async fn get_checksums_at_height(rpc: &Rpc, height: u64) -> anyhow::Result<Checksums> {
-    let mut checksums = Checksums::default();
-    for code_path in Checksums::code_paths() {
-        let code = rpc
-            .query_tx_code_hash(&code_path, height)
-            .await?
-            .unwrap_or_else(|| panic!("{} must be defined in namada storage.", code_path));
-        checksums.add(code_path, code);
-    }
-    Ok(checksums)
-}
-
-async fn get_state_from_rpc(rpc: &Rpc, height: u64, checksums: Checksums) -> anyhow::Result<State> {
-    let native_token = rpc.query_native_token().await.into_retry_error()?;
-    let epoch = rpc
-        .query_current_epoch(height)
-        .await
-        .into_retry_error()?
-        .unwrap_or(0);
-
-    let block = rpc
-        .query_block(height, &checksums, epoch)
-        .await
-        .into_retry_error()?;
-
-    if block.height != height {
-        return Err(anyhow::anyhow!(
-            "Block height mismatch: expected {}, got {}",
-            height,
-            block.height
-        ));
-    }
-
-    let max_block_time_estimate = rpc
-        .query_max_block_time_estimate()
-        .await
-        .into_retry_error()?;
-    let total_supply_native = rpc
-        .query_total_supply(&native_token)
-        .await
-        .into_retry_error()?;
-    let (future_bonds, future_unbonds) = rpc
-        .query_future_bonds_and_unbonds(epoch)
-        .await
-        .into_retry_error()?;
-    let validators = rpc.query_validators(epoch).await.into_retry_error()?;
-
-    Ok(State::new(
-        block,
-        native_token,
-        max_block_time_estimate,
-        total_supply_native,
-        validators,
-        future_bonds,
-        future_unbonds,
-    ))
-}
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let mut config = AppConfig::parse();
+    let config = AppConfig::parse();
     config.log.init();
 
     let retry_strategy = retry_strategy(config.sleep_for);
-    let rpc = Rpc::new(config.rpc.clone());
-    let chain_id = rpc.get_chain_id().await?;
-    match config.chain_id.as_ref() {
-        Some(expected_chain_id) if &chain_id != expected_chain_id => {
-            return Err(anyhow::anyhow!(
-                "Chain ID mismatch: expected {}, got {}",
-                expected_chain_id,
-                chain_id
-            ));
-        }
-        _ => config.chain_id = Some(chain_id),
-    }
+    let rpc = Arc::new(Mutex::new(Rpc::new(&config.rpc, &config.chain_id).await));
 
     let initial_block_height = match config.initial_block_height {
-        u64::MAX => rpc.query_lastest_height().await?,
+        u64::MAX => rpc.lock().await.query_lastest_height().await?,
         height => height,
     };
-
     let last_block_height = config.last_block_height;
 
     let metrics = MetricsExporter::default_metrics(&config);
-    let checksums = get_checksums_at_height(&rpc, initial_block_height).await?;
-    let state = get_state_from_rpc(&rpc, initial_block_height, checksums.clone()).await?;
-    metrics.reset(&state);
-    metrics.start_exporter()?;
+    let checks = CheckExporter::new(&config);
+
+    // Get initial state
+    let state = rpc.lock().await.get_state(initial_block_height).await?;
+
+    metrics.start_exporter_with(&state)?;
 
     let current_state = Arc::new(RwLock::new(state));
-    let current_checksums = Arc::new(RwLock::new(checksums));
+    let block_explorer = config
+        .block_explorer
+        .unwrap_or("https://explorer75.org/namada".to_string());
+    let re = Regex::new(r"<([^< ]+)\|([^> ]+)>").unwrap();
 
     loop {
-        Retry::spawn_notify(
+        if Retry::spawn_notify(
             retry_strategy.clone(),
             || async {
                 // lock is dropped at the end of the line
                 let pre_state = current_state.read().await.clone();
 
-                // immediate next block
+                // wait for immediate next block
                 let block_height = pre_state.next_block_height();
-                let checksums = current_checksums.read().await.clone();
-                let post_state = get_state_from_rpc(&rpc, block_height, checksums)
+                let post_state = rpc
+                    .lock()
+                    .await
+                    .get_state(block_height)
                     .await
                     .into_retry_error()?;
-                if post_state.get_epoch() != pre_state.get_epoch() {
-                    // update checksums
-                    *current_checksums.write().await =
-                        get_checksums_at_height(&rpc, initial_block_height)
-                            .await
-                            .into_retry_error()?;
-                }
 
                 if block_height <= last_block_height {
                     // update metrics
                     metrics.update(&pre_state, &post_state);
+
+                    let alerts = checks.run_checks(&[&pre_state, &post_state]);
+                    if !alerts.is_empty() {
+                        let mut alert_content = vec![];
+                        alert_content.push(SlackTextContent::Text(SlackText::new(format!(
+                            ":bricks: {} - Alerts at height:",
+                            config.chain_id.clone()
+                        ))));
+                        alert_content.push(SlackTextContent::Link(SlackLink::new(
+                            &format!("{}/blocks/{}", block_explorer, block_height),
+                            &block_height.to_string(),
+                        )));
+                        alert_content.push(SlackTextContent::Text(SlackText::new("\n")));
+
+                        for alert in alerts {
+                            let mut last_end = 0;
+                            for cap in re.captures_iter(&alert) {
+                                let m = cap.get(0).unwrap();
+                                // Add text between matches
+                                if m.start() > last_end {
+                                    alert_content.push(SlackTextContent::Text(SlackText::new(
+                                        &alert[last_end..m.start()],
+                                    )));
+                                }
+                                // Add capture groups
+                                let url = cap.get(1).map_or("", |m| m.as_str());
+                                let text = cap.get(2).map_or("", |m| m.as_str());
+                                alert_content
+                                    .push(SlackTextContent::Link(SlackLink::new(url, text)));
+                                last_end = m.end();
+                            }
+
+                            // Add remaining text after last match
+                            if last_end < alert.len() {
+                                alert_content.push(SlackTextContent::Text(SlackText::new(
+                                    &alert[last_end..],
+                                )));
+                            }
+                            alert_content.push(SlackTextContent::Text(SlackText::new("\n")));
+                        }
+
+                        let payload = PayloadBuilder::new()
+                            .text(alert_content.as_slice())
+                            .build()
+                            .expect("we know this payload is valid");
+                        if config.slack.is_some() {
+                            // send alerts to slack
+                            let slack = Slack::new(config.slack.as_ref().unwrap()).unwrap();
+                            tracing::info!("Sending message to slack {:?}", payload);
+                            match slack.send(&payload).await {
+                                Ok(()) => println!("Message sent!"),
+                                Err(err) => eprintln!("Error: {err:?}"),
+                            };
+                        } else {
+                            tracing::info!("ALERT! {:?}", payload);
+                        }
+                    }
+                    // post_state is the new current state
+                    *current_state.write().await = post_state;
+                    tracing::info!("Done block {}", block_height);
+                    Ok(false) // continue
                 } else {
                     tracing::info!("Last block height reached: {}", block_height);
+                    Ok(true) // done
                 }
-
-                // post_state is the new current state
-                *current_state.write().await = post_state;
-                tracing::info!("Done block {}", block_height);
-
-                Ok(())
             },
             notify,
         )
-        .await?;
+        .await?
+        {
+            break Ok(());
+        }
     }
 }
 
 fn retry_strategy(max_delay_milis: u64) -> ExponentialBackoff {
-    ExponentialBackoff::from_millis(1000)
+    ExponentialBackoff::from_millis(100)
         .factor(1)
         .max_delay_millis(max_delay_milis)
 }
