@@ -17,36 +17,27 @@ use super::MetricTrait;
 
 pub struct Epoch {
     /// The latest epoch recorded
-    epoch_counter: GenericCounter<AtomicU64>,
+    epoch: GenericCounter<AtomicU64>,
 }
 
 impl MetricTrait for Epoch {
     fn register(&self, registry: &Registry) -> Result<()> {
-        registry.register(Box::new(self.epoch_counter.clone()))?;
+        registry.register(Box::new(self.epoch.clone()))?;
         Ok(())
     }
 
-    fn reset(&self, state: &State) {
-        self.epoch_counter.reset();
-        self.epoch_counter.inc_by(state.get_last_block().epoch);
-    }
+    fn update(&self, state: &State) {
+        let last_state = state.last_block();
 
-    fn update(&self, pre_state: &State, post_state: &State) {
-        if pre_state.get_last_block().epoch > post_state.get_last_block().epoch {
-            tracing::error!(
-                "Epoch not updated Error. pre_state: {:?}, post_state: {:?}",
-                pre_state.get_last_block().epoch,
-                post_state.get_last_block().epoch
-            );
-        }
-        self.reset(post_state);
+        let latest_epoch = self.epoch.get();
+        self.epoch.inc_by(last_state.block.epoch - latest_epoch);
     }
 }
 
 impl Default for Epoch {
     fn default() -> Self {
         Self {
-            epoch_counter: GenericCounter::<AtomicU64>::new("epoch", "the latest epoch recorded")
+            epoch: GenericCounter::<AtomicU64>::new("epoch", "the latest epoch recorded")
                 .expect("unable to create counter epoch"),
         }
     }

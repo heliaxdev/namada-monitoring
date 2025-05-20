@@ -1,12 +1,10 @@
-mod alert;
-mod block_height;
-mod block_time;
+mod block;
 mod bonds;
 mod epoch;
 mod fees;
 mod signatures;
-pub mod slashes;
-mod total_supply_native_token;
+mod slashes;
+mod token_total_supply;
 mod transactions;
 mod transfers;
 mod validator;
@@ -14,14 +12,13 @@ mod voting_power;
 
 use std::{collections::HashMap, net::SocketAddr};
 
-use block_height::BlockHeight;
-use block_time::BlockTime;
+use block::Block;
 use bonds::Bonds;
 use epoch::Epoch;
 use fees::Fees;
 use signatures::Signatures;
 use slashes::Slashes;
-use total_supply_native_token::TotalSupplyNativeToken;
+use token_total_supply::TokenTotalSupply;
 use transactions::Transactions;
 use transfers::Transfers;
 use validator::ValidatorState;
@@ -31,10 +28,9 @@ use crate::{config::AppConfig, state::State};
 use anyhow::{Context, Result};
 use prometheus_exporter::prometheus::Registry;
 
-pub trait MetricTrait {
+pub trait MetricTrait: Send + Sync {
     fn register(&self, registry: &Registry) -> Result<()>;
-    fn reset(&self, state: &State);
-    fn update(&self, pre_state: &State, post_state: &State);
+    fn update(&self, state: &State);
 }
 
 pub struct MetricsExporter {
@@ -44,11 +40,9 @@ pub struct MetricsExporter {
 }
 
 impl MetricsExporter {
-    pub fn new(config: &AppConfig, metrics: Vec<Box<dyn MetricTrait>>) -> Self {
-        let port = config.prometheus_port;
-
+    pub fn new(config: &AppConfig) -> Self {
         let registry = Registry::new_custom(
-            Some("namada".to_string()),
+            Some("namada_monitoring".to_string()),
             Some(HashMap::from_iter([(
                 "chain_id".to_string(),
                 config.chain_id.clone(),
@@ -56,37 +50,35 @@ impl MetricsExporter {
         )
         .expect("Failed to create registry");
 
+        let metrics = Self::default_metrics();
+
         for metric in &metrics {
-            // TODO: check that it is enabled in the config
             metric
                 .register(&registry)
                 .expect("Failed to register metric");
         }
+
         Self {
-            port,
+            port: config.prometheus_port,
             metrics,
             registry,
         }
     }
 
-    pub fn default_metrics(config: &AppConfig) -> Self {
-        let metrics = vec![
-            Box::<BlockHeight>::default() as Box<dyn MetricTrait>,
+    pub fn default_metrics() -> Vec<Box<dyn MetricTrait>> {
+        vec![
+            Box::<Block>::default() as Box<dyn MetricTrait>,
             Box::<Bonds>::default() as Box<dyn MetricTrait>,
             Box::<Epoch>::default() as Box<dyn MetricTrait>,
-            Box::<TotalSupplyNativeToken>::default() as Box<dyn MetricTrait>,
+            Box::<TokenTotalSupply>::default() as Box<dyn MetricTrait>,
             Box::<Transactions>::default() as Box<dyn MetricTrait>,
             Box::<Transfers>::default() as Box<dyn MetricTrait>,
             Box::<VotingPower>::default() as Box<dyn MetricTrait>,
-            Box::<BlockTime>::default() as Box<dyn MetricTrait>,
             Box::<Fees>::default() as Box<dyn MetricTrait>,
             Box::<Signatures>::default() as Box<dyn MetricTrait>,
             Box::<Slashes>::default() as Box<dyn MetricTrait>,
             Box::<ValidatorState>::default() as Box<dyn MetricTrait>,
-            Box::new(alert::Alert::new(config)) as Box<dyn MetricTrait>,
-        ];
-
-        Self::new(config, metrics)
+        ]
     }
 
     pub fn start_exporter(&self) -> anyhow::Result<()> {
@@ -99,22 +91,14 @@ impl MetricsExporter {
 
         Ok(())
     }
-    pub fn start_exporter_with(&self, state: &State) -> anyhow::Result<()> {
-        self.reset(state);
+    pub fn start_exporter_with(&self) -> anyhow::Result<()> {
         self.start_exporter()
-            .context("can not start exporter with state")?;
-        Ok(())
+            .context("can not start exporter with state")
     }
 
-    pub fn reset(&self, state: &State) {
+    pub fn update(&self, state: &State) {
         for metric in &self.metrics {
-            metric.reset(state);
-        }
-    }
-
-    pub fn update(&self, pre_state: &State, post_state: &State) {
-        for metric in &self.metrics {
-            metric.update(pre_state, post_state);
+            metric.update(state);
         }
     }
 }

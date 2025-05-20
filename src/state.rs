@@ -1,77 +1,87 @@
-use anyhow::anyhow;
+use std::collections::BTreeMap;
 
-use crate::shared::namada::{Address, Block, Height, Transfer, Validator};
+use anyhow::anyhow;
+use namada_sdk::{ibc::IbcMessage, proof_of_stake::types::ValidatorState};
+
+use crate::shared::{
+    namada::{Block, Inner, InnerKind, Transfer, TransferKind, Validator, Wrapper},
+    supply::Supply,
+};
 
 #[derive(Debug, Clone)]
-pub struct State {
-    block: Block,
-    max_block_time_estimate: u64,
-    total_supply_native: u64,
-    native_token: Address,
-    validators: Vec<Validator>,
-    future_bonds: u64,
-    future_unbonds: u64,
+pub struct BlockState {
+    pub block: Block,
+    pub bonds: u64,
+    pub unbonds: u64,
+    pub validators: Vec<Validator>,
+    pub supplies: Vec<Supply>,
 }
 
-impl State {
-    #[allow(clippy::too_many_arguments)]
+impl BlockState {
     pub fn new(
         block: Block,
-        native_token: Address,
-        max_block_time_estimate: u64,
-        total_supply_native: u64,
+        bonds: u64,
+        unbonds: u64,
         validators: Vec<Validator>,
-        future_bonds: u64,
-        future_unbonds: u64,
+        supplies: Vec<Supply>,
     ) -> Self {
         Self {
             block,
-            native_token,
-            max_block_time_estimate,
-            total_supply_native,
+            bonds,
+            unbonds,
             validators,
-            future_bonds,
-            future_unbonds,
+            supplies,
         }
     }
 
-    pub fn next_block_height(&self) -> Height {
-        self.block.height + 1
-    }
-
-    pub fn max_next_block_timestamp_estimate(&self) -> i64 {
-        self.block.timestamp + self.max_block_time_estimate as i64
-    }
-
-    pub fn get_max_block_time_estimate(&self) -> i64 {
-        self.max_block_time_estimate as i64
-    }
-
-    pub fn get_last_block(&self) -> &Block {
-        &self.block
-    }
-
-    pub fn get_total_supply_for(&self, token: &Address) -> Option<u64> {
-        if token == &self.native_token {
-            Some(self.total_supply_native)
-        } else {
-            None
-        }
-    }
-
-    pub fn get_native_token(&self) -> &Address {
-        &self.native_token
-    }
-
-    pub fn total_voting_power(&self) -> u64 {
+    pub fn consensus_validators(&self) -> Vec<Validator> {
         self.validators
             .iter()
-            .map(|validator| validator.voting_power)
-            .sum()
+            .filter(|validator| matches!(validator.state, ValidatorState::Consensus))
+            .cloned()
+            .collect::<Vec<_>>()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct State {
+    pub blocks: Vec<BlockState>,
+    size: usize,
+}
+
+impl Default for State {
+    fn default() -> Self {
+        Self {
+            blocks: Default::default(),
+            size: 7200,
+        }
+    }
+}
+
+impl State {
+    pub fn add_block(&mut self, block_state: BlockState) {
+        if self.blocks.len() == self.size {
+            self.blocks.remove(0);
+        }
+        self.blocks.push(block_state);
+    }
+
+    pub fn total_blocks(&self) -> usize {
+        self.blocks.len()
+    }
+
+    pub fn last_block(&self) -> BlockState {
+        self.blocks.last().unwrap().clone()
+    }
+
+    pub fn prev_block(&self) -> BlockState {
+        self.blocks[self.blocks.len() - 2].clone()
     }
 
     pub fn validators_with_voting_power(&self, fraction: f64) -> anyhow::Result<u64> {
-        let mut validators = self.validators.clone();
+        let block = self.last_block();
+
+        let mut validators = block.validators.clone();
         validators.sort_by_key(|validator| validator.voting_power);
         validators.reverse();
 
@@ -91,49 +101,81 @@ impl State {
         ))
     }
 
-    pub fn get_total_supply_native_token(&self) -> u64 {
-        self.total_supply_native
-    }
+    pub fn total_voting_power(&self) -> u64 {
+        let block = self.last_block();
 
-    pub fn get_future_bonds(&self) -> u64 {
-        self.future_bonds
-    }
-
-    pub fn get_future_unbonds(&self) -> u64 {
-        self.future_unbonds
-    }
-
-    pub fn get_block(&self) -> &Block {
-        &self.block
-    }
-
-    pub fn get_signatures(&self) -> Vec<String> {
-        self.block
-            .block
-            .last_commit()
-            .clone()
-            .map(|commit| {
-                commit
-                    .signatures
-                    .iter()
-                    .filter_map(|sig| sig.validator_address().map(|addr| addr.to_string()))
-                    .collect()
-            })
-            .unwrap_or_default()
-    }
-
-    pub fn get_slashes(&self) -> u64 {
-        self.block.block.evidence.iter().len() as u64
-    }
-
-    pub fn get_epoch(&self) -> u64 {
-        self.block.epoch
+        block
+            .validators
+            .iter()
+            .map(|validator| validator.voting_power)
+            .sum()
     }
 
     pub fn get_all_transfers(&self) -> Vec<Transfer> {
-        self.block.get_all_transfers()
-    }
-    pub fn get_validators(&self) -> &Vec<Validator> {
-        &self.validators
+        let block = self.last_block().block;
+
+        let mut transfers = Vec::new();
+        for tx in block
+            .transactions
+            .iter()
+            .filter(|tx| tx.status.was_applied())
+            .cloned()
+            .collect::<Vec<Wrapper>>()
+        {
+            for inner in tx
+                .inners
+                .iter()
+                .filter(|tx| tx.was_applied)
+                .cloned()
+                .collect::<Vec<Inner>>()
+            {
+                match &inner.kind {
+                    InnerKind::Transfer(transfer) => {
+                        let mut groups: BTreeMap<String, Vec<u64>> = BTreeMap::new();
+                        for (a, b) in &transfer.targets {
+                            groups
+                                .entry(a.token.to_string())
+                                .or_default()
+                                .push(b.amount().raw_amount().as_u64());
+                        }
+                        for (token, amounts) in groups {
+                            let total: u64 = amounts.iter().sum();
+                            transfers.push(Transfer {
+                                height: block.height,
+                                id: inner.id.clone(),
+                                kind: TransferKind::Native,
+                                token: token.clone(),
+                                amount: total,
+                                accepted: inner.was_applied,
+                            });
+                        }
+                    }
+                    InnerKind::IbcMsgTransfer(IbcMessage::Transfer(msg_transfer)) => {
+                        if let Some(transfer) = &msg_transfer.transfer {
+                            let mut groups: BTreeMap<String, Vec<u64>> = BTreeMap::new();
+                            for (a, b) in &transfer.targets {
+                                groups
+                                    .entry(a.token.to_string())
+                                    .or_default()
+                                    .push(b.amount().raw_amount().as_u64());
+                            }
+                            for (token, amounts) in groups {
+                                let total: u64 = amounts.iter().sum();
+                                transfers.push(Transfer {
+                                    height: block.height,
+                                    id: inner.id.clone(),
+                                    kind: TransferKind::Ibc,
+                                    token: token.clone(),
+                                    amount: total,
+                                    accepted: inner.was_applied,
+                                });
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        transfers
     }
 }

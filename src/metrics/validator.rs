@@ -2,17 +2,14 @@ use super::MetricTrait;
 use crate::state::State;
 use anyhow::Result;
 use namada_sdk::proof_of_stake::types::ValidatorState as EnumValidatorState;
-use prometheus_exporter::prometheus::{
-    core::{AtomicU64, GenericCounter},
-    Registry,
-};
+use prometheus_exporter::prometheus::{GaugeVec, Opts, Registry};
 
 pub struct ValidatorState {
-    pub consensus_validators: GenericCounter<AtomicU64>,
-    pub jailed_validators: GenericCounter<AtomicU64>,
-    pub inactive_validators: GenericCounter<AtomicU64>,
-    pub below_threshold_validators: GenericCounter<AtomicU64>,
-    pub below_capacity_validators: GenericCounter<AtomicU64>,
+    pub consensus_validators: GaugeVec,
+    pub jailed_validators: GaugeVec,
+    pub inactive_validators: GaugeVec,
+    pub below_threshold_validators: GaugeVec,
+    pub below_capacity_validators: GaugeVec,
 }
 
 impl MetricTrait for ValidatorState {
@@ -25,63 +22,96 @@ impl MetricTrait for ValidatorState {
         Ok(())
     }
 
-    fn reset(&self, state: &State) {
-        self.consensus_validators.reset();
-        self.jailed_validators.reset();
-        self.inactive_validators.reset();
-        self.below_threshold_validators.reset();
-        self.below_capacity_validators.reset();
+    fn update(&self, state: &State) {
+        let last_state = state.last_block();
 
-        for validator in state.get_validators() {
+        let mut total_consensus_validators = 0;
+        let mut total_jailed_validators = 0;
+        let mut total_inactive_validators = 0;
+        let mut total_below_threshold_validators = 0;
+
+        for validator in &last_state.validators {
             match validator.state {
-                EnumValidatorState::Consensus => self.consensus_validators.inc(),
-                EnumValidatorState::BelowCapacity => self.below_capacity_validators.inc(),
-                EnumValidatorState::BelowThreshold => self.below_threshold_validators.inc(),
-                EnumValidatorState::Inactive => self.inactive_validators.inc(),
-                EnumValidatorState::Jailed => self.jailed_validators.inc(),
+                EnumValidatorState::Consensus => {
+                    total_consensus_validators += 1;
+                }
+                EnumValidatorState::Jailed => {
+                    total_jailed_validators += 1;
+                }
+                EnumValidatorState::Inactive => {
+                    total_inactive_validators += 1;
+                }
+                EnumValidatorState::BelowThreshold => {
+                    total_below_threshold_validators += 1;
+                }
+                EnumValidatorState::BelowCapacity => {
+                    total_below_threshold_validators += 1;
+                }
             }
         }
-    }
 
-    fn update(&self, _pre_state: &State, post_state: &State) {
-        self.reset(post_state);
+        self.consensus_validators
+            .with_label_values(&[&last_state.block.epoch.to_string()])
+            .set(total_consensus_validators as f64);
+        self.jailed_validators
+            .with_label_values(&[&last_state.block.epoch.to_string()])
+            .set(total_jailed_validators as f64);
+        self.inactive_validators
+            .with_label_values(&[&last_state.block.epoch.to_string()])
+            .set(total_inactive_validators as f64);
+        self.below_threshold_validators
+            .with_label_values(&[&last_state.block.epoch.to_string()])
+            .set(total_below_threshold_validators as f64);
+        self.below_capacity_validators
+            .with_label_values(&[&last_state.block.epoch.to_string()])
+            .set(total_below_threshold_validators as f64);
     }
 }
 
 impl Default for ValidatorState {
     fn default() -> Self {
-        let consensus_validators = GenericCounter::new(
-            "consensus_validators",
-            "Number of validators that are in consensus state",
-        )
-        .expect("unable to create consensus_validators");
-        let jailed_validators = GenericCounter::new(
-            "jailed_validators",
-            "Number of validators that are in jailed state",
-        )
-        .expect("unable to create jailed_validators");
-        let inactive_validators = GenericCounter::new(
-            "inactive_validators",
-            "Number of validators that are in inactive state",
-        )
-        .expect("unable to create inactive_validators");
-        let below_threshold_validators = GenericCounter::new(
-            "below_threshold_validators",
-            "Number of validators that are below the voting power threshold",
-        )
-        .expect("unable to create below_threshold_validators");
-        let below_capacity_validators = GenericCounter::new(
-            "below_capacity_validators",
-            "Number of validators that are below the capacity threshold",
-        )
-        .expect("unable to create below_capacity_validators");
+        let opts = vec![
+            (
+                "consensus_validators",
+                "Number of validators that are in consensus state",
+                &["epoch"],
+            ),
+            (
+                "jailed_validators",
+                "Number of validators that are in jailed state",
+                &["epoch"],
+            ),
+            (
+                "inactive_validators",
+                "Number of validators that are in inactive state",
+                &["epoch"],
+            ),
+            (
+                "below_threshold_validators",
+                "Number of validators that are below the voting power threshold",
+                &["epoch"],
+            ),
+            (
+                "below_capacity_validators",
+                "Number of validators that are below the capacity threshold",
+                &["epoch"],
+            ),
+        ];
+
+        let mut metrics = vec![];
+        for (name, description, labels) in opts {
+            let opts = Opts::new(name, description);
+            let gauge = GaugeVec::new(opts, labels)
+                .unwrap_or_else(|_| panic!("unable to create {} metric", name));
+            metrics.push(gauge);
+        }
 
         Self {
-            consensus_validators,
-            jailed_validators,
-            inactive_validators,
-            below_threshold_validators,
-            below_capacity_validators,
+            consensus_validators: metrics[0].clone(),
+            jailed_validators: metrics[1].clone(),
+            inactive_validators: metrics[2].clone(),
+            below_threshold_validators: metrics[3].clone(),
+            below_capacity_validators: metrics[4].clone(),
         }
     }
 }

@@ -26,10 +26,6 @@ impl Checksums {
         self.0.insert(key, value.to_lowercase());
     }
 
-    pub fn add_with_ext(&mut self, key: String, value: String) {
-        self.0.insert(key, value);
-    }
-
     pub fn code_paths() -> Vec<String> {
         vec![
             TX_IBC_WASM.to_string(),

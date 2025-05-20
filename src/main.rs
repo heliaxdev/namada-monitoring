@@ -1,5 +1,7 @@
+pub mod alerts;
 pub mod checks;
 pub mod config;
+pub mod constants;
 pub mod error;
 pub mod log;
 pub mod metrics;
@@ -7,148 +9,108 @@ pub mod rpc;
 pub mod shared;
 pub mod state;
 
-use checks::CheckExporter;
+use std::sync::{
+    atomic::{self, AtomicBool},
+    Arc,
+};
+
+use async_stream::stream;
 use clap::Parser;
 use config::AppConfig;
 use error::AsRetryError;
-use metrics::MetricsExporter;
-use regex::Regex;
-use rpc::Rpc;
-use slack_hook::{PayloadBuilder, Slack, SlackLink, SlackText, SlackTextContent};
-use std::sync::Arc;
-use tokio::sync::{Mutex, RwLock};
-use tokio_retry2::{strategy::ExponentialBackoff, Retry};
-
-fn notify(err: &std::io::Error, duration: std::time::Duration) {
-    if duration.as_secs() > 100 {
-        tracing::warn!("Error {err:?} occurred at {duration:?}");
-    }
-}
+use futures::{pin_mut, Stream, StreamExt};
+use shared::manager::Manager;
+use tokio::signal;
+use tokio_retry2::{strategy::FixedInterval, RetryIf};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let config = AppConfig::parse();
     config.log.init();
 
+    let tokens = config.get_config().tokens();
+
+    tracing::info!("{:#?}", config.get_config());
+
+    let (manager, initial_block_height) = Manager::new(&config).await;
+
     let retry_strategy = retry_strategy(config.sleep_for);
-    let rpc = Arc::new(Mutex::new(Rpc::new(&config.rpc, &config.chain_id).await));
+    let must_exit_handle = must_exit_handle();
 
-    let initial_block_height = match config.initial_block_height {
-        u64::MAX => rpc.lock().await.query_lastest_height().await?,
-        height => height,
-    };
-    let last_block_height = config.last_block_height;
+    let s = indexes(initial_block_height, None);
+    pin_mut!(s);
 
-    let metrics = MetricsExporter::default_metrics(&config);
-    let checks = CheckExporter::new(&config);
-
-    // Get initial state
-    let state = rpc.lock().await.get_state(initial_block_height).await?;
-
-    metrics.start_exporter_with(&state)?;
-
-    let current_state = Arc::new(RwLock::new(state));
-    let block_explorer = config
-        .block_explorer
-        .unwrap_or("https://explorer75.org/namada".to_string());
-    let re = Regex::new(r"<([^< ]+)\|([^> ]+)>").unwrap();
-
-    loop {
-        if Retry::spawn_notify(
+    while let Some(index) = s.next().await {
+        if must_exit_handle.load(atomic::Ordering::Relaxed) {
+            break;
+        }
+        _ = RetryIf::spawn(
             retry_strategy.clone(),
             || async {
-                // lock is dropped at the end of the line
-                let pre_state = current_state.read().await.clone();
+                tracing::info!("Fetching block at height {}...", index);
+                let mut manager = manager.write().await;
 
-                // wait for immediate next block
-                let block_height = pre_state.next_block_height();
-                let post_state = rpc
-                    .lock()
-                    .await
-                    .get_state(block_height)
+                let continous_alerts = manager.checks.run_continous_checks(&manager.state).await;
+
+                manager
+                    .update_next_state(index as u64, tokens.clone())
                     .await
                     .into_retry_error()?;
 
-                if block_height <= last_block_height {
-                    // update metrics
-                    metrics.update(&pre_state, &post_state);
-
-                    let alerts = checks.run_checks(&[&pre_state, &post_state]);
-                    if !alerts.is_empty() {
-                        let mut alert_content = vec![];
-                        alert_content.push(SlackTextContent::Text(SlackText::new(format!(
-                            ":bricks: {} - Alerts at height:",
-                            config.chain_id.clone()
-                        ))));
-                        alert_content.push(SlackTextContent::Link(SlackLink::new(
-                            &format!("{}/blocks/{}", block_explorer, block_height),
-                            &block_height.to_string(),
-                        )));
-                        alert_content.push(SlackTextContent::Text(SlackText::new("\n")));
-
-                        for alert in alerts {
-                            let mut last_end = 0;
-                            for cap in re.captures_iter(&alert) {
-                                let m = cap.get(0).unwrap();
-                                // Add text between matches
-                                if m.start() > last_end {
-                                    alert_content.push(SlackTextContent::Text(SlackText::new(
-                                        &alert[last_end..m.start()],
-                                    )));
-                                }
-                                // Add capture groups
-                                let url = cap.get(1).map_or("", |m| m.as_str());
-                                let text = cap.get(2).map_or("", |m| m.as_str());
-                                alert_content
-                                    .push(SlackTextContent::Link(SlackLink::new(url, text)));
-                                last_end = m.end();
-                            }
-
-                            // Add remaining text after last match
-                            if last_end < alert.len() {
-                                alert_content.push(SlackTextContent::Text(SlackText::new(
-                                    &alert[last_end..],
-                                )));
-                            }
-                            alert_content.push(SlackTextContent::Text(SlackText::new("\n")));
-                        }
-
-                        let payload = PayloadBuilder::new()
-                            .text(alert_content.as_slice())
-                            .build()
-                            .expect("we know this payload is valid");
-                        if config.slack.is_some() {
-                            // send alerts to slack
-                            let slack = Slack::new(config.slack.as_ref().unwrap()).unwrap();
-                            tracing::info!("Sending message to slack {:?}", payload);
-                            match slack.send(&payload).await {
-                                Ok(()) => println!("Message sent!"),
-                                Err(err) => eprintln!("Error: {err:?}"),
-                            };
-                        } else {
-                            tracing::info!("ALERT! {:?}", payload);
-                        }
-                    }
-                    // post_state is the new current state
-                    *current_state.write().await = post_state;
-                    tracing::info!("Done block {}", block_height);
-                    Ok(false) // continue
-                } else {
-                    tracing::info!("Last block height reached: {}", block_height);
-                    Ok(true) // done
+                if !manager.has_enough_blocks() {
+                    return Ok(());
                 }
+
+                manager.metrics_exporter.update(&manager.state);
+
+                let block_alerts = manager.checks.run_block_checks(&manager.state).await;
+
+                let all_alerts = continous_alerts
+                    .into_iter()
+                    .chain(block_alerts.into_iter())
+                    .collect::<Vec<_>>();
+                manager.alerts.run_alerts(all_alerts.clone()).await;
+
+                tracing::info!(
+                    "Done block at height {} ({} alerts)",
+                    index,
+                    all_alerts.len()
+                );
+                Ok(())
             },
+            |_e: &std::io::Error| !must_exit_handle.load(atomic::Ordering::Relaxed),
             notify,
         )
-        .await?
-        {
-            break Ok(());
-        }
+        .await;
     }
+
+    Ok(())
 }
 
-fn retry_strategy(max_delay_milis: u64) -> ExponentialBackoff {
-    ExponentialBackoff::from_millis(100)
-        .factor(1)
-        .max_delay_millis(max_delay_milis)
+fn notify(err: &std::io::Error, duration: std::time::Duration) {
+    tracing::debug!("Error {err:?} occurred at {duration:?}");
+}
+
+fn retry_strategy(sleep_for: u64) -> FixedInterval {
+    FixedInterval::from_millis(sleep_for * 1000)
+}
+
+fn must_exit_handle() -> Arc<AtomicBool> {
+    let handle = Arc::new(AtomicBool::new(false));
+    let task_handle = Arc::clone(&handle);
+    tokio::spawn(async move {
+        signal::ctrl_c()
+            .await
+            .expect("Error receiving interrupt signal");
+        task_handle.store(true, atomic::Ordering::Relaxed);
+    });
+    handle
+}
+
+fn indexes(from: u32, to: Option<u32>) -> impl Stream<Item = u32> {
+    stream! {
+        for i in from..to.unwrap_or(u32::MAX) {
+            yield i;
+        }
+    }
 }

@@ -1,0 +1,37 @@
+[block_explorer]
+base_url = "https://...."
+tx_endpoint = "/tx/{tx_hash}"
+block_endpoint = "/blocks/{block_height}"
+
+[chain]
+block_time = 9
+block_time_max_deviation = 0.1
+halt_threshold = 100
+
+[pos]
+mininimum_one_third_validators = 2
+mininimum_two_third_validators = 4
+bond_increase_threshold = 0.1
+unbond_increase_threshold = 0.1
+consensus_threshold = 0.1
+
+[tx]
+threshold_sections = 5
+threshold_batch = 5
+gas_limit_threshold = 0.5
+
+[[fees]]
+alias = "nam"
+token = "tnam1...."
+threshold = 0.0
+
+
+[slack]
+slack_webhook = "example"
+channel = "example"
+
+[[ibc]]
+alias = "example"
+channel = 13
+connection = 15
+client_id = 19

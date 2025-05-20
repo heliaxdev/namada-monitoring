@@ -70,17 +70,17 @@ impl MetricTrait for Transactions {
         Ok(())
     }
 
-    fn reset(&self, _state: &State) {}
+    fn update(&self, state: &State) {
+        let last_state = state.last_block();
 
-    fn update(&self, _pre_state: &State, post_state: &State) {
-        // update transaction size metrics
-        for tx in &post_state.get_last_block().transactions {
+        let epoch = last_state.block.epoch.to_string();
+        for tx in &last_state.block.transactions {
             self.transaction_batch_size.observe(tx.inners.len() as f64);
             for inner in &tx.inners {
                 let inner_kind = inner.kind.to_string();
                 let failed = !inner.was_applied;
                 self.transaction_kind
-                    .with_label_values(&[&inner_kind, &failed.to_string()])
+                    .with_label_values(&[&inner_kind, &failed.to_string(), &epoch])
                     .inc();
             }
         }
@@ -99,8 +99,9 @@ impl Default for Transactions {
 
         let transaction_kind_opts =
             Opts::new("transaction_kind", "Transaction kind count per epoch");
-        let transaction_kind = IntCounterVec::new(transaction_kind_opts, &["kind", "failed"])
-            .expect("unable to create int counter for transaction kinds");
+        let transaction_kind =
+            IntCounterVec::new(transaction_kind_opts, &["kind", "failed", "epoch"])
+                .expect("unable to create int counter for transaction kinds");
 
         Self {
             transaction_batch_size,
