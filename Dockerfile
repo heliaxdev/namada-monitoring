@@ -38,5 +38,5 @@ FROM docker.io/debian:bookworm-slim
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y ca-certificates curl
 WORKDIR /app
 COPY --from=builder /app/target/release/namada-monitoring /app/monitoring
-COPY --chmod=755 ./init.sh /app/init.sh
-ENTRYPOINT ["/app/init.sh"]
+COPY --chmod=755 ./init.sh init.sh
+ENTRYPOINT ["init.sh"]
