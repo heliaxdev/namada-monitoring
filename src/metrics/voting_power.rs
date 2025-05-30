@@ -22,14 +22,14 @@
 /// ```
 use crate::state::State;
 use anyhow::Result;
-use prometheus_exporter::prometheus::{Gauge, Registry};
+use prometheus_exporter::prometheus::{GaugeVec, Opts, Registry};
 
 use super::MetricTrait;
 
 pub struct VotingPower {
-    pub one_third_threshold: Gauge,
-    pub two_third_threshold: Gauge,
-    pub total_voting_power: Gauge,
+    pub one_third_threshold: GaugeVec,
+    pub two_third_threshold: GaugeVec,
+    pub total_voting_power: GaugeVec,
 }
 
 impl MetricTrait for VotingPower {
@@ -40,50 +40,60 @@ impl MetricTrait for VotingPower {
         Ok(())
     }
 
-    fn reset(&self, state: &State) {
-        self.one_third_threshold.set(
-            state
-                .validators_with_voting_power(1.0 / 3.0)
-                .unwrap_or_default() as f64,
-        );
-        self.two_third_threshold.set(
-            state
-                .validators_with_voting_power(2.0 / 3.0)
-                .unwrap_or_default() as f64,
-        );
-        self.total_voting_power
-            .set(state.total_voting_power() as f64);
-    }
+    fn update(&self, state: &State) {
+        let last_state = state.last_block();
 
-    fn update(&self, _pre_state: &State, post_state: &State) {
-        self.reset(post_state);
+        let one_third_vp = state
+            .validators_with_voting_power(1.0 / 3.0)
+            .unwrap_or_default();
+        self.one_third_threshold
+            .with_label_values(&[&last_state.block.epoch.to_string()])
+            .set(one_third_vp as f64);
+
+        let two_third_vp = state
+            .validators_with_voting_power(2.0 / 3.0)
+            .unwrap_or_default();
+        self.two_third_threshold
+            .with_label_values(&[&last_state.block.epoch.to_string()])
+            .set(two_third_vp as f64);
+        self.total_voting_power
+            .with_label_values(&[&last_state.block.epoch.to_string()])
+            .set(state.total_voting_power() as f64);
     }
 }
 
 impl Default for VotingPower {
     fn default() -> Self {
-        let one_third_threshold = Gauge::new(
-            "one_third_threshold",
-            "The number of validators to reach 1/3 of the voting power",
-        )
-        .expect("unable to create counter two third threshold");
+        let opts = vec![
+            (
+                "one_third_threshold",
+                "The number of validators to reach 1/3 of the voting power",
+                &["epoch"],
+            ),
+            (
+                "two_third_threshold",
+                "The number of validators to reach 2/3 of the voting power",
+                &["epoch"],
+            ),
+            (
+                "total_voting_power",
+                "The total voting power of the network",
+                &["epoch"],
+            ),
+        ];
 
-        let two_third_threshold = Gauge::new(
-            "two_third_threshold",
-            "The number of validators to reach 2/3 of the voting power",
-        )
-        .expect("unable to create counter two third threshold");
-
-        let total_voting_power = Gauge::new(
-            "total_voting_power",
-            "The total voting power of the network",
-        )
-        .expect("unable to create counter total voting power");
+        let mut metrics = vec![];
+        for (name, description, labels) in opts {
+            let opts = Opts::new(name, description);
+            let gauge = GaugeVec::new(opts, labels)
+                .unwrap_or_else(|_| panic!("unable to create {} metric", name));
+            metrics.push(gauge);
+        }
 
         Self {
-            one_third_threshold,
-            two_third_threshold,
-            total_voting_power,
+            one_third_threshold: metrics[0].clone(),
+            two_third_threshold: metrics[1].clone(),
+            total_voting_power: metrics[2].clone(),
         }
     }
 }

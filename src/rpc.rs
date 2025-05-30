@@ -1,37 +1,39 @@
 use crate::shared::{
     checksums::Checksums,
     namada::{Address, Block, BlockResult, Epoch, Height, Validator},
+    supply::Supply,
 };
-use crate::state::State;
 use anyhow::Context;
-use futures::FutureExt;
+
+use namada_sdk::tendermint::block::Height as TenderHeight;
 use namada_sdk::{
     address::Address as NamadaAddress,
     hash::Hash,
     proof_of_stake::types::ValidatorState,
     rpc,
-    state::{BlockHeight, Epoch as NamadaEpoch, Key},
+    state::{Epoch as NamadaEpoch, Key},
     tendermint_rpc::Client,
 };
-use namada_sdk::{borsh::BorshDeserialize, tendermint::block::Height as TenderHeight, token};
-use std::{future::Future, str::FromStr};
+use std::str::FromStr;
 use tendermint_rpc::client::CompatMode;
 use tendermint_rpc::{HttpClient, HttpClientUrl, Url};
 
 pub struct Rpc {
-    clients: Vec<HttpClient>,
-    cache: Option<(Epoch, Checksums, Vec<Validator>)>,
-    pos: std::cell::RefCell<usize>,
+    client: HttpClient,
 }
 
 impl Rpc {
-    pub fn get_clients(&self) -> Box<dyn Iterator<Item = &HttpClient> + '_> {
-        // round robin using self.pos and a hardcoded size of 3
-        *self.pos.borrow_mut() += 1;
-        Box::new(self.clients.iter().cycle().skip(*self.pos.borrow()).take(5))
+    pub async fn new(url: &str) -> anyhow::Result<Self> {
+        let url = Url::from_str(url).context(format!("Invalid URL: {}", url))?;
+        let client = HttpClient::builder(HttpClientUrl::try_from(url.clone()).unwrap())
+            .compat_mode(CompatMode::V0_37)
+            .build()
+            .context(format!("Failed to create client for URL: {}", url))?;
+
+        Ok(Self { client })
     }
 
-    async fn get_checksums_at_height(&self, height: u64) -> anyhow::Result<Checksums> {
+    pub async fn query_checksums_at_height(&self, height: u64) -> anyhow::Result<Checksums> {
         tracing::debug!("Getting checksums at height {}", height);
         let mut checksums = Checksums::default();
         for code_path in Checksums::code_paths() {
@@ -44,127 +46,6 @@ impl Rpc {
         Ok(checksums)
     }
 
-    pub async fn get_state(&mut self, height: u64) -> anyhow::Result<State> {
-        tracing::debug!("Getting state at height {}", height);
-
-        let native_token = self.query_native_token().await?;
-        let epoch = self.query_current_epoch(height).await?.unwrap_or(0);
-
-        // get checksums and validators from cached value or from rpc
-        let (checksums, validators) = match &self.cache {
-            Some((cached_epoch, checksums, validators)) if *cached_epoch == epoch => {
-                (checksums, validators)
-            }
-            _ => {
-                let validators = self.query_validators(epoch).await?;
-                let checksums = self.get_checksums_at_height(height).await?;
-                self.cache = Some((epoch, checksums, validators));
-                (
-                    &self.cache.as_ref().unwrap().1,
-                    &self.cache.as_ref().unwrap().2,
-                )
-            }
-        };
-
-        let block = self.query_block(height, checksums, epoch).await?;
-
-        if block.height != height {
-            return Err(anyhow::anyhow!(
-                "Block height mismatch: expected {}, got {}",
-                height,
-                block.height
-            ));
-        }
-
-        let max_block_time_estimate = self.query_max_block_time_estimate().await?;
-        let total_supply_native = self
-            .get_total_supply_at_height(&native_token, height)
-            .await?;
-        // TODO: subtract PGF balance which for effective total supply
-
-        // flamegraph says this is time consuming
-        let (future_bonds, future_unbonds) = self.query_future_bonds_and_unbonds(epoch).await?;
-
-        Ok(State::new(
-            block,
-            native_token,
-            max_block_time_estimate,
-            total_supply_native,
-            validators.clone(),
-            future_bonds,
-            future_unbonds,
-        ))
-    }
-
-    pub async fn new(urls: &[String], expected_chain_id: &str) -> Self {
-        let clients = urls
-            .iter()
-            .filter_map(|url| {
-                let url = Url::from_str(url).unwrap();
-                let client = HttpClient::builder(HttpClientUrl::try_from(url.clone()).unwrap())
-                    .compat_mode(CompatMode::V0_37)
-                    .build()
-                    .unwrap();
-
-                // Check if the client matches the expected chain ID
-                match tokio::task::block_in_place(|| {
-                    tokio::runtime::Handle::current().block_on(client.status())
-                }) {
-                    Ok(status) if status.node_info.network.to_string() == expected_chain_id => {
-                        Some(client)
-                    }
-                    Ok(_) => {
-                        tracing::warn!(
-                            "Client at {} does not match expected chain ID: {}",
-                            url.to_string(),
-                            expected_chain_id
-                        );
-                        None
-                    }
-                    Err(err) => {
-                        tracing::error!("Failed to connect to client at {}: {:?}", url, err);
-                        None
-                    }
-                }
-            })
-            .collect();
-
-        Self {
-            clients,
-            cache: None,
-            pos: 0.into(),
-        }
-    }
-
-    pub async fn get_chain_id(&self) -> anyhow::Result<String> {
-        let mut chain_id = None;
-        for client in self.get_clients() {
-            let current_chain_id = match client.status().await {
-                Ok(status) => {
-                    let network = status.node_info.network.clone();
-                    String::from(network)
-                }
-                Err(err) => return Err(anyhow::anyhow!("Failed to get status: {:?}", err)),
-            };
-
-            if let Some(existing_chain_id) = &chain_id {
-                if existing_chain_id != &current_chain_id {
-                    return Err(anyhow::anyhow!(
-                        "Chain IDs do not match: {} != {}",
-                        existing_chain_id,
-                        current_chain_id
-                    ));
-                }
-            } else {
-                chain_id = Some(current_chain_id);
-            }
-        }
-        match chain_id {
-            Some(chain_id) => Ok(chain_id.to_string()),
-            None => Err(anyhow::anyhow!("No chain IDs found")),
-        }
-    }
-
     pub async fn query_tx_code_hash(
         &self,
         tx_code_path: &str,
@@ -172,17 +53,9 @@ impl Rpc {
     ) -> anyhow::Result<Option<String>> {
         let hash_key = Key::wasm_hash(tx_code_path);
 
-        let futures: Vec<_> = self
-            .get_clients()
-            .map(|client| {
-                rpc::query_storage_value_bytes(client, &hash_key, Some(BlockHeight(height)), false)
-                    .boxed()
-            })
-            .collect();
-
-        let res = self
-            .concurrent_requests(futures.into_iter().map(Box::pin).collect())
-            .await;
+        let res =
+            rpc::query_storage_value_bytes(&self.client, &hash_key, Some(height.into()), false)
+                .await;
 
         if let Some(tx_code_bytes) = res.context("Should be able to get tx code")?.0 {
             Ok(Hash::try_from(&tx_code_bytes[..])
@@ -193,53 +66,24 @@ impl Rpc {
         }
     }
 
-    pub async fn query_current_epoch(&self, block_height: Height) -> anyhow::Result<Option<Epoch>> {
-        let futures: Vec<_> = self
-            .get_clients()
-            .map(|client| rpc::query_epoch_at_height(client, block_height.into()).boxed())
-            .collect();
-
-        let res = self
-            .concurrent_requests(futures.into_iter().map(Box::pin).collect())
-            .await;
+    pub async fn query_epoch_at_height(
+        &self,
+        block_height: Height,
+    ) -> anyhow::Result<Option<Epoch>> {
+        let res = rpc::query_epoch_at_height(&self.client, block_height.into()).await;
 
         res.map(|epoch| epoch.map(|epoch| epoch.0))
             .context("Should be able to get epoch")
     }
 
-    pub async fn query_lastest_height(&self) -> anyhow::Result<u64> {
-        let futures = self
-            .get_clients()
-            .map(|client| client.latest_block())
-            .collect();
+    pub async fn query_lastest_height(&self) -> anyhow::Result<u32> {
+        let res = self.client.latest_block().await;
 
-        let res = self.concurrent_requests(futures).await;
-
-        res.map(|response| response.block.header.height.into())
+        res.map(|response| response.block.header.height.value() as u32)
             .context("Should be able to query for block")
     }
 
-    pub async fn query_count_slashes_before(&self, height: Height) -> anyhow::Result<usize> {
-        // To count the slashes at height we need to get the slashes for the validators
-        // at the tip and filter the slashes that happened after the target height :chefkiss:
-        let pos_query = namada_sdk::queries::RPC.vp().pos();
-        let futures = self
-            .get_clients()
-            .map(|client| Box::pin(pos_query.slashes(client)))
-            .collect();
-
-        let res = self.concurrent_requests(futures).await;
-
-        res.map(|response| {
-            response
-                .into_iter()
-                .filter(|(_, slashes)| slashes.iter().any(|slash| slash.block_height < height))
-                .count()
-        })
-        .context("Should be able to query for block")
-    }
-
-    pub async fn query_block(
+    pub async fn query_block_at_height(
         &self,
         block_height: Height,
         checksums: &Checksums,
@@ -247,25 +91,14 @@ impl Rpc {
     ) -> anyhow::Result<Block> {
         let block_height = TenderHeight::try_from(block_height).unwrap();
 
-        let events_futures = self
-            .get_clients()
-            .map(|client| client.block_results(block_height))
-            .collect();
-
-        let events_res = self.concurrent_requests(events_futures).await;
-
+        let events_res = self.client.block_results(block_height).await;
         let events = events_res.map(BlockResult::from).context(format!(
             "Should be able to query for block events for height: {}",
             block_height
         ))?;
 
-        let block_futures = self
-            .get_clients()
-            .map(|client| client.block(block_height))
-            .collect();
-
-        let block_res = self.concurrent_requests(block_futures).await;
-        block_res
+        let block = self.client.block(block_height).await;
+        block
             .map(|response| Block::from(response, events, checksums, epoch))
             .context(format!(
                 "Should be able to query for block for height: {}",
@@ -278,13 +111,8 @@ impl Rpc {
         validator: &NamadaAddress,
         epoch: Epoch,
     ) -> anyhow::Result<ValidatorState> {
-        let futures = self
-            .get_clients()
-            .map(|client| rpc::get_validator_state(client, validator, Some(epoch.into())).boxed())
-            .collect();
-
-        let res = self.concurrent_requests(futures).await;
-        let (validator_state, _y) = res.context("Should be able to query validator state")?;
+        let res = rpc::get_validator_state(&self.client, validator, Some(epoch.into())).await;
+        let (validator_state, _epoch) = res.context("Should be able to query validator state")?;
 
         match validator_state {
             Some(state_info) => Ok(state_info),
@@ -297,24 +125,14 @@ impl Rpc {
         validator: &NamadaAddress,
         epoch: Epoch,
     ) -> anyhow::Result<u64> {
-        let futures = self
-            .get_clients()
-            .map(|client| rpc::get_validator_stake(client, epoch.into(), validator).boxed())
-            .collect();
-
-        let res = self.concurrent_requests(futures).await;
+        let res = rpc::get_validator_stake(&self.client, epoch.into(), validator).await;
         let stake = res.context("Should be able to query validator stake")?;
 
         Ok(stake.raw_amount().as_u64())
     }
 
     pub async fn query_validators(&self, epoch: Epoch) -> anyhow::Result<Vec<Validator>> {
-        let futures = self
-            .get_clients()
-            .map(|client| rpc::get_all_validators(client, NamadaEpoch(epoch)).boxed())
-            .collect();
-
-        let res = self.concurrent_requests(futures).await;
+        let res = rpc::get_all_validators(&self.client, NamadaEpoch(epoch)).await;
 
         let validators = res.context("Should be able to query native token")?;
         let futures = validators.into_iter().map(|validator_address| {
@@ -342,12 +160,7 @@ impl Rpc {
     }
 
     pub async fn query_native_token(&self) -> anyhow::Result<Address> {
-        let futures = self
-            .get_clients()
-            .map(|client| rpc::query_native_token(client).boxed())
-            .collect();
-
-        let res = self.concurrent_requests(futures).await;
+        let res = rpc::query_native_token(&self.client).await;
 
         res.context("Should be able to query native token")
             .map(|address| address.to_string())
@@ -356,25 +169,14 @@ impl Rpc {
     pub async fn query_total_supply(&self, native_token: &str) -> anyhow::Result<u64> {
         let address = NamadaAddress::from_str(native_token)
             .context("Should be able to convert string to address")?;
-
-        let futures = self
-            .get_clients()
-            .map(|client| rpc::get_token_total_supply(client, &address).boxed())
-            .collect();
-
-        let res = self.concurrent_requests(futures).await;
+        let res = rpc::get_token_total_supply(&self.client, &address).await;
 
         res.context("Should be able to query native token")
             .map(|amount| amount.raw_amount().as_u64())
     }
 
     pub async fn query_max_block_time_estimate(&self) -> anyhow::Result<u64> {
-        let futures = self
-            .get_clients()
-            .map(|client| rpc::query_max_block_time_estimate(client).boxed())
-            .collect();
-
-        let res = self.concurrent_requests(futures).await;
+        let res = rpc::query_max_block_time_estimate(&self.client).await;
 
         res.context("Should be able to query max block time estimate")
             .map(|amount| amount.0)
@@ -382,16 +184,9 @@ impl Rpc {
 
     pub async fn query_future_bonds_and_unbonds(&self, epoch: Epoch) -> anyhow::Result<(u64, u64)> {
         let pipeline_epoch = NamadaEpoch(epoch + 1);
-        let futures = self
-            .get_clients()
-            .map(|client| {
-                rpc::enriched_bonds_and_unbonds(client, pipeline_epoch, &None, &None).boxed()
-            })
-            .collect();
+        let res = rpc::enriched_bonds_and_unbonds(&self.client, pipeline_epoch, &None, &None).await;
 
-        let res = self.concurrent_requests(futures).await;
-
-        res.context("Should be able to query native token")
+        res.context("Should be able to query bonds and unbonds")
             .map(|summary| {
                 (
                     summary
@@ -406,47 +201,13 @@ impl Rpc {
             })
     }
 
-    async fn concurrent_requests<T, E: std::fmt::Debug>(
-        &self,
-        futures: Vec<impl Future<Output = Result<T, E>> + Unpin>,
-    ) -> Option<T> {
-        self.concurrent_requests_idx(futures)
-            .await
-            .map(|(_idx, value)| value)
-    }
-
-    async fn concurrent_requests_idx<T, E: std::fmt::Debug>(
-        &self,
-        futures: Vec<impl Future<Output = Result<T, E>> + Unpin>,
-    ) -> Option<(usize, T)> {
-        let mut futures = futures;
-        while !futures.is_empty() {
-            let (result, index, remaining) = futures::future::select_all(futures).await;
-            match result {
-                Ok(value) => return Some((index, value)),
-                Err(e) => {
-                    tracing::error!("Error: {:?}", e);
-                    futures = remaining
-                }
-            }
-        }
-        None
-    }
-
     pub async fn read_storage_at_height(
         &self,
         key: &Key,
         height: Height,
     ) -> anyhow::Result<Option<Vec<u8>>> {
-        let futures = self
-            .get_clients()
-            .map(|client| {
-                rpc::query_storage_value_bytes(client, key, Some(BlockHeight(height)), false)
-                    .boxed()
-            })
-            .collect();
-
-        let res = self.concurrent_requests(futures).await;
+        let res =
+            rpc::query_storage_value_bytes(&self.client, key, Some(height.into()), false).await;
 
         let result = res.context("Should be able to query storage at height");
         match result {
@@ -456,26 +217,36 @@ impl Rpc {
         }
     }
 
-    // this uses the read_storage_at_height function to query the key minted_balance_key(token) and in the case of the native togen it takes the  PGF balance into account
-    pub async fn get_total_supply_at_height(
-        &self,
-        token: &str,
-        height: Height,
-    ) -> anyhow::Result<u64> {
-        let key = self.get_minted_key(token);
-        let value = self.read_storage_at_height(&key, height).await?;
-        match value {
-            Some(value) => {
-                let amount =
-                    token::Amount::try_from_slice(&value).unwrap_or_else(|_| token::Amount::zero());
-                Ok(amount.raw_amount().as_u64())
-            }
-            None => Err(anyhow::anyhow!("Error querying storage: {:?}", key)),
-        }
+    pub async fn query_native_token_supply(&self, token: &str) -> anyhow::Result<Supply> {
+        let address = NamadaAddress::from_str(token)
+            .context("Should be able to convert string to address")?;
+        let total_supply_res = rpc::get_token_total_supply(&self.client, &address).await;
+        let effect_supply_res = rpc::get_effective_native_supply(&self.client).await;
+
+        let total_native_supply = total_supply_res
+            .context("Should be able to query total supply native token")
+            .map(|amount| amount.raw_amount().as_u64())?;
+        let effective_native_supply = effect_supply_res
+            .context("Should be able to query effective supply native token")
+            .map(|amount| amount.raw_amount().as_u64())?;
+
+        Ok(Supply {
+            total: total_native_supply,
+            effective: effective_native_supply,
+            token: token.to_string(),
+        })
     }
 
-    pub fn get_minted_key(&self, token_addr: &str) -> Key {
-        let token_addr: namada_sdk::address::Address = token_addr.parse().unwrap();
-        namada_sdk::token::storage_key::minted_balance_key(&token_addr)
+    pub async fn query_token_supply(&self, token: &str) -> anyhow::Result<Supply> {
+        let address = NamadaAddress::from_str(token)
+            .context("Should be able to convert string to address")?;
+        let total_supply_res = rpc::get_token_total_supply(&self.client, &address).await?;
+        let total_supply = total_supply_res.raw_amount().as_u64();
+
+        Ok(Supply {
+            total: total_supply,
+            effective: total_supply,
+            token: token.to_string(),
+        })
     }
 }

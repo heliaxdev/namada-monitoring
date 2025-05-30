@@ -1,20 +1,26 @@
 use namada_sdk::tendermint::evidence;
 
-use super::{CheckTrait, State};
+use crate::{
+    shared::alert::{Alert, Metadata, Severity},
+    state::State,
+};
 
-#[derive(Default)]
+use super::CheckTrait;
+
+const SLASHES_CHECK_ID: &str = "slash_check";
+
+#[derive(Debug, Clone, Default)]
 pub struct SlashCheck {}
 
+#[async_trait::async_trait]
 impl CheckTrait for SlashCheck {
-    fn check(&self, states: &[&State]) -> Vec<String> {
-        let last_state = states.last().unwrap();
-        let last_block = last_state.get_last_block();
-        let mut results = Vec::new();
+    async fn check(&self, state: &State) -> Vec<Alert> {
+        let last_state = state.last_block();
 
-        for evidence in last_block.block.evidence.iter() {
+        last_state.block.block.evidence.iter().map(|evidence| {
             match evidence {
                 evidence::Evidence::DuplicateVote(duplicate_vote_evidence) => {
-                    let duplicate_vote_evidence_description = format!(
+                    let description = format!(
                         "✂️ Duplicate vote evidence found. Total power: {}. Validator {} voted {} at height {}. Validator {} voted {} at height {}.",
                         duplicate_vote_evidence.total_voting_power,
                         duplicate_vote_evidence.vote_a.validator_address,
@@ -24,10 +30,25 @@ impl CheckTrait for SlashCheck {
                         duplicate_vote_evidence.vote_b.vote_type,
                         duplicate_vote_evidence.vote_b.height
                     );
-                    results.push(duplicate_vote_evidence_description);
+                    let title = format!(
+                        "Duplicate vote evidence found for block {}",
+                        last_state.block.block.header.height
+                    );
+                    Alert {
+                        title,
+                        description,
+                        metadata: Metadata::new(
+                            Some(last_state.block.block.header.height.value() as u32),
+                            None
+                        ),
+                        severity: Severity::Low,
+                        check_id: SLASHES_CHECK_ID.to_string(),
+                        trigger_after: None,
+                        continous: self.is_continous()
+                    }
                 }
                 evidence::Evidence::LightClientAttack(light_client_attack_evidence) => {
-                    let light_client_attack_evidence_description = format!(
+                    let description = format!(
                         "✂️ Light client attack evidence found. Total power: {}. Conflicting block height: {}. Conflicting block proposer: {}. Common height: {}. Byzantine validators: {:?}.",
                         light_client_attack_evidence.total_voting_power,
                         light_client_attack_evidence
@@ -43,10 +64,28 @@ impl CheckTrait for SlashCheck {
                         light_client_attack_evidence.common_height,
                         light_client_attack_evidence.byzantine_validators
                     );
-                    results.push(light_client_attack_evidence_description);
+                    let title = format!(
+                        "Light client attack evidence found for block {}",
+                        last_state.block.block.header.height
+                    );
+                    Alert {
+                        title,
+                        description,
+                        metadata: Metadata::new(
+                            Some(last_state.block.block.header.height.value() as u32),
+                            None
+                        ),
+                        severity: Severity::Low,
+                        check_id: SLASHES_CHECK_ID.to_string(),
+                        trigger_after: None,
+                        continous: self.is_continous()
+                    }
                 }
             }
-        }
-        results
+        }).collect()
+    }
+
+    fn is_continous(&self) -> bool {
+        false
     }
 }

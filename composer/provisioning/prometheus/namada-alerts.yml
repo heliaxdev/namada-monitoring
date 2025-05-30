@@ -1,7 +1,7 @@
 groups:
 - name: namada-validator-alerts
   rules:
-  - alert: NamadaBlockHeightStalled
+  - alert: NamadaBlockStalled
     expr: (absent_over_time(namada_block_height{ chain_id="$$CHAIN_ID$$" }[1m]) or rate(namada_block_height{ chain_id="$$CHAIN_ID$$" }[1m]) == 0)
     labels:
       severity: critical

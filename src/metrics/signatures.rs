@@ -23,13 +23,13 @@
 /// ```
 use crate::state::State;
 use anyhow::Result;
-use prometheus_exporter::prometheus::{Gauge, Registry};
+use prometheus_exporter::prometheus::{GaugeVec, Opts, Registry};
 
 use super::MetricTrait;
 
 pub struct Signatures {
     /// GaugeVec to track the number of signatures in the lastest block height
-    signatures: Gauge,
+    signatures: GaugeVec,
 }
 
 impl MetricTrait for Signatures {
@@ -38,24 +38,32 @@ impl MetricTrait for Signatures {
         Ok(())
     }
 
-    fn reset(&self, _state: &State) {
-        self.signatures.set(0.0);
-    }
+    fn update(&self, state: &State) {
+        let last_state = state.last_block();
 
-    fn update(&self, _pre_state: &State, post_state: &State) {
-        let total_signatures = post_state.get_signatures().len() as u64;
-        self.signatures.set(total_signatures as f64);
+        let total_signatures = last_state
+            .block
+            .block
+            .last_commit()
+            .clone()
+            .unwrap()
+            .signatures
+            .len();
+        self.signatures
+            .with_label_values(&[&last_state.block.height.to_string()])
+            .set(total_signatures as f64);
     }
 }
 
 impl Default for Signatures {
     fn default() -> Self {
-        let signatures = Gauge::new("signatures", "Number of validators signatures per block")
-            .expect("unable to create gauge for signatures count");
-
+        let signature_opts = Opts::new(
+            "block_signatures",
+            "Number of validators signatures per block",
+        );
         Self {
-            // signatures_histogram,
-            signatures,
+            signatures: GaugeVec::new(signature_opts, &["height"])
+                .expect("unable to create signatures metric"),
         }
     }
 }

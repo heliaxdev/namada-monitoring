@@ -30,10 +30,11 @@ impl MetricTrait for Fees {
         Ok(())
     }
 
-    fn reset(&self, state: &State) {
-        let block = state.get_last_block();
-        self.fees.reset();
-        for tx in &block.transactions {
+    fn update(&self, state: &State) {
+        let last_state = state.last_block();
+
+        let block_height = last_state.block.height.to_string();
+        for tx in &last_state.block.transactions {
             let amount_per_gas = tx.fee.amount_per_gas_unit.parse::<f64>();
             let gas_limit = tx.fee.gas.parse::<f64>();
 
@@ -43,25 +44,19 @@ impl MetricTrait for Fees {
             };
 
             self.fees
-                .with_label_values(&[&tx.fee.gas_token])
+                .with_label_values(&[&tx.fee.gas_token, &block_height])
                 .inc_by(fee);
-
             self.fees_by_tx
                 .with_label_values(&[&tx.fee.gas_token])
                 .observe(fee);
-            tracing::debug!("Transaction fee: {} {}", fee, tx.fee.gas_token);
         }
-    }
-
-    fn update(&self, _pre_state: &State, post_state: &State) {
-        self.reset(post_state);
     }
 }
 
 impl Default for Fees {
     fn default() -> Self {
-        let fees_opts = Opts::new("fees", "Total fees paid per token over time");
-        let fees = CounterVec::new(fees_opts, &["token"])
+        let fees_opts = Opts::new("fees", "Total fees paid per token per block height");
+        let fees = CounterVec::new(fees_opts, &["token", "height"])
             .expect("unable to create gauge vector for transaction fees");
 
         let fees_by_tx_opts = HistogramOpts::new("fees_by_tx", "Total fees paid per transaction")

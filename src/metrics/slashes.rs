@@ -22,16 +22,12 @@
 /// ```
 use crate::state::State;
 use anyhow::Result;
-use prometheus_exporter::prometheus::{
-    core::{AtomicU64, GenericCounter},
-    Registry,
-};
+use prometheus_exporter::prometheus::{GaugeVec, Opts, Registry};
 
 use super::MetricTrait;
 
 pub struct Slashes {
-    /// Overall slashes count (will only increase)
-    slashes: GenericCounter<AtomicU64>,
+    slashes: GaugeVec,
 }
 
 impl MetricTrait for Slashes {
@@ -40,22 +36,22 @@ impl MetricTrait for Slashes {
         Ok(())
     }
 
-    fn reset(&self, _state: &State) {
-        // Histograms do not have a reset method, so we do nothing here
-        self.slashes.reset();
-    }
+    fn update(&self, state: &State) {
+        let last_state = state.last_block();
 
-    fn update(&self, _pre_state: &State, post_state: &State) {
-        let total_slashes = post_state.get_slashes();
-        self.slashes.inc_by(total_slashes);
+        let total_slashes = last_state.block.block.evidence.iter().len();
+        self.slashes
+            .with_label_values(&[&last_state.block.epoch.to_string()])
+            .set(total_slashes as f64);
     }
 }
 
 impl Default for Slashes {
     fn default() -> Self {
-        let slashes = GenericCounter::new("slashes", "Number of validators slashed")
-            .expect("unable to create counter for slashes count");
-
-        Self { slashes }
+        let slashes_opts = Opts::new("slashes", "Number of slashes per epoch");
+        Self {
+            slashes: GaugeVec::new(slashes_opts, &["epoch"])
+                .expect("unable to create slashes metric"),
+        }
     }
 }

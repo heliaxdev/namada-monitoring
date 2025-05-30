@@ -1,8 +1,4 @@
-use crate::shared::namada::ibc::core::handler::types::msgs::MsgEnvelope;
-use ibc::clients::tendermint::types::Header as ClientHeader;
-use ibc::core::client::types::msgs::ClientMsg;
 use namada_sdk::borsh::BorshDeserialize;
-use namada_sdk::collections::HashSet;
 use namada_sdk::governance::{InitProposalData, VoteProposalData};
 use namada_sdk::ibc::{self, IbcMessage};
 use namada_sdk::key::common::PublicKey;
@@ -62,7 +58,24 @@ pub struct Wrapper {
     pub inners: Vec<Inner>,
     pub fee: Fee,
     pub atomic: bool,
+    pub total_sections: u64,
     pub status: TransactionExitStatus,
+}
+
+impl Wrapper {
+    pub fn compute_fee(&self) -> f64 {
+        let gas_limit = self.fee.gas.parse::<f64>().unwrap_or_default();
+        let amount_per_gas = self
+            .fee
+            .amount_per_gas_unit
+            .parse::<f64>()
+            .unwrap_or_default();
+        gas_limit * amount_per_gas
+    }
+
+    pub fn get_gas_used(&self) -> f64 {
+        self.fee.gas_used as f64
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -194,6 +207,7 @@ pub struct Inner {
     pub id: TxId,
     pub size: usize,
     pub kind: InnerKind,
+
     pub was_applied: bool,
 }
 
@@ -250,7 +264,7 @@ pub enum TxEventStatusCode {
 impl From<&str> for TxEventStatusCode {
     fn from(value: &str) -> Self {
         match value {
-            "0" | "1" => Self::Ok,
+            "1" => Self::Ok,
             _ => Self::Fail,
         }
     }
@@ -335,6 +349,7 @@ impl Block {
                         .map(|gas| gas.parse::<u64>().unwrap_or_default())
                         .unwrap_or_default();
                     let atomic = tx.header().atomic;
+                    let total_sections = tx.sections.len() as u64;
 
                     let fee = if let TxType::Wrapper(wrapper) = tx.header().tx_type {
                         Fee {
@@ -403,12 +418,58 @@ impl Block {
                         inners,
                         fee,
                         atomic,
+                        total_sections,
                         status: wrapper_tx_status,
                     })
                 })
                 .collect(),
         }
     }
+
+    pub fn count_inners(&self) -> u64 {
+        self.transactions
+            .iter()
+            .map(|tx| tx.inners.len())
+            .sum::<usize>() as u64
+    }
+
+    // pub fn get_all_ibc_client(&self) -> Vec<IbcClient> {
+    //     let mut ibc_clients = vec![];
+    //     for tx in self
+    //         .transactions
+    //         .iter()
+    //         .filter(|tx| tx.status.was_applied())
+    //         .cloned()
+    //         .collect::<Vec<Wrapper>>()
+    //     {
+    //         for inner in tx
+    //             .inners
+    //             .iter()
+    //             .filter(|tx| tx.was_applied)
+    //             .cloned()
+    //             .collect::<Vec<Inner>>()
+    //         {
+    //             match &inner.kind {
+    //                 InnerKind::IbcMsgTransfer(IbcMessage::Envelope(msg_envelope)) => {
+    //                     match &**msg_envelope {
+    //                         MsgEnvelope::Client(client_msg) => match client_msg {
+    //                             ClientMsg::UpdateClient(msg_update_client) => {
+    //                                 let client = IbcClient {
+    //                                     client_id: msg_update_client.client_id.to_string(),
+    //                                 };
+    //                             }
+    //                             _ => ()
+    //                         },
+    //                         _ => (),
+    //                     }
+    //                 }
+    //                 _ => (),
+    //             }
+    //         }
+    //     }
+
+    //     ibc_clients
+    // }
 
     pub fn get_all_transfers(&self) -> Vec<Transfer> {
         let mut transfers = Vec::new();
@@ -469,52 +530,6 @@ impl Block {
                             }
                         }
                     }
-                    InnerKind::IbcMsgTransfer(IbcMessage::Envelope(msg_envelope)) => {
-                        match msg_envelope.as_ref() {
-                            MsgEnvelope::Client(client_msg) => {
-                                match client_msg {
-                                    ClientMsg::CreateClient(msg_create_client) => {
-                                        let header = ClientHeader::try_from(
-                                            msg_create_client.consensus_state.clone(),
-                                        )
-                                        .unwrap();
-                                        let mut address_set = HashSet::new();
-                                        for val in header.validator_set.validators() {
-                                            if address_set.contains(&val.address) {
-                                                println!("Validator already exists: {:?} !!!!!!!!!!!!!!!!!!!!!" , val.address);
-                                            } else {
-                                                address_set.insert(val.address);
-                                            }
-                                        }
-                                        tracing::info!("Ibc Client created with {} validators (all different address)_", address_set.len());
-                                    }
-                                    ClientMsg::UpdateClient(msg_update_client) => {
-                                        //println!("BBB msg_update_client.clientmessage: {:?}", msg_update_client.client_message);
-
-                                        let header = ClientHeader::try_from(
-                                            msg_update_client.client_message.clone(),
-                                        )
-                                        .unwrap();
-                                        let mut address_set = HashSet::new();
-                                        for val in header.validator_set.validators() {
-                                            if address_set.contains(&val.address) {
-                                                println!("Validator already exists: {:?} !!!!!!!!!!!!!!!!!!!!!" , val.address);
-                                            } else {
-                                                address_set.insert(val.address);
-                                            }
-                                        }
-                                        tracing::info!("Ibc Client updated with {} validators (all different address)", address_set.len());
-                                    }
-                                    ClientMsg::Misbehaviour(_msg_submit_misbehaviour) => {}
-                                    ClientMsg::UpgradeClient(_msg_upgrade_client) => {}
-                                    ClientMsg::RecoverClient(_msg_recover_client) => {}
-                                }
-                            }
-                            MsgEnvelope::Connection(_connection_msg) => {}
-                            MsgEnvelope::Channel(_channel_msg) => {}
-                            MsgEnvelope::Packet(_packet_msg) => {}
-                        }
-                    }
                     _ => {}
                 }
             }
@@ -539,6 +554,11 @@ pub struct Transfer {
     pub token: String,
     pub amount: u64,
     pub accepted: bool,
+}
+
+#[derive(Clone, Debug)]
+pub struct IbcClient {
+    pub client_id: String,
 }
 
 impl BlockResult {

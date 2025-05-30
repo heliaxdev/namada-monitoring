@@ -18,39 +18,50 @@
 use crate::state::State;
 use anyhow::Result;
 use prometheus_exporter::prometheus::core::{AtomicU64, GenericCounter};
-use prometheus_exporter::prometheus::Registry;
+use prometheus_exporter::prometheus::{Histogram, HistogramOpts, Registry};
 
 use super::MetricTrait;
 
-pub struct BlockHeight {
+pub struct Block {
     block_height: GenericCounter<AtomicU64>,
+    block_time: Histogram,
 }
 
-impl MetricTrait for BlockHeight {
+impl MetricTrait for Block {
     fn register(&self, registry: &Registry) -> Result<()> {
         registry.register(Box::new(self.block_height.clone()))?;
+        registry.register(Box::new(self.block_time.clone()))?;
         Ok(())
     }
 
-    fn reset(&self, state: &State) {
-        self.block_height.reset();
-        self.block_height.inc_by(state.get_last_block().height);
-    }
+    fn update(&self, state: &State) {
+        let last_state = state.last_block();
+        let prev_state = state.prev_block();
 
-    fn update(&self, pre_state: &State, post_state: &State) {
-        self.block_height
-            .inc_by(post_state.get_last_block().height - pre_state.get_last_block().height);
+        let block_height = last_state.block.height;
+        let latest_block = self.block_height.get();
+        self.block_height.inc_by(block_height - latest_block);
+
+        let process_time = last_state.block.timestamp - prev_state.block.timestamp;
+        self.block_time.observe(process_time as f64);
     }
 }
 
-impl Default for BlockHeight {
+impl Default for Block {
     fn default() -> Self {
+        let buckets = vec![5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0];
+        let block_time_opts =
+            HistogramOpts::new("block_time", "The time spent processing block").buckets(buckets);
+        let block_time = Histogram::with_opts(block_time_opts)
+            .expect("unable to create histogram blocks used time");
+
         Self {
             block_height: GenericCounter::<AtomicU64>::new(
                 "block_height",
                 "the latest block height recorded",
             )
             .expect("unable to create counter block_height"),
+            block_time,
         }
     }
 }

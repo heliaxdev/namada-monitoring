@@ -1,40 +1,68 @@
+mod block;
 mod fees;
+mod gas;
+mod halt;
+mod ibc;
+mod pos;
 mod slashes;
-mod tendermint_rs;
-mod total_supply;
+mod tx;
 
+use async_trait::async_trait;
+use block::BlockCheck;
 use fees::FeeCheck;
+use gas::GasCheck;
+use halt::HaltCheck;
+use ibc::IbcCheck;
+use pos::PoSCheck;
 use slashes::SlashCheck;
-use tendermint_rs::TendermintRsCheck;
-use total_supply::TotalSupplyCheck;
+use tx::TxCheck;
 
 pub use crate::config::AppConfig;
+use crate::shared::alert::Alert;
 pub use crate::state::State;
 
-pub trait CheckTrait {
-    fn check(&self, states: &[&State]) -> Vec<String>;
+#[async_trait]
+pub trait CheckTrait: Send + Sync {
+    async fn check(&self, state: &State) -> Vec<Alert>;
+    fn is_continous(&self) -> bool;
 }
 
-// static list of all defined checks
-pub struct CheckExporter {
+pub struct CheckManager {
     checks: Vec<Box<dyn CheckTrait>>,
 }
 
-impl CheckExporter {
+impl CheckManager {
     pub fn new(config: &AppConfig) -> Self {
         let checks: Vec<Box<dyn CheckTrait>> = vec![
             Box::new(FeeCheck::new(config)),
+            Box::new(BlockCheck::new(config)),
+            Box::new(PoSCheck::new(config)),
+            Box::new(TxCheck::new(config)),
+            Box::new(HaltCheck::new(config)),
+            Box::new(GasCheck::new(config)),
+            Box::new(IbcCheck::new(config)),
             Box::new(SlashCheck::default()),
-            Box::new(TendermintRsCheck::default()),
-            Box::new(TotalSupplyCheck::default()),
         ];
         Self { checks }
     }
 
-    pub fn run_checks(&self, states: &[&State]) -> Vec<String> {
+    pub async fn run_block_checks(&self, states: &State) -> Vec<Alert> {
         let mut results = Vec::new();
         for check in &self.checks {
-            results.extend(check.check(states));
+            if check.is_continous() {
+                continue;
+            }
+            results.extend(check.check(states).await);
+        }
+        results
+    }
+
+    pub async fn run_continous_checks(&self, states: &State) -> Vec<Alert> {
+        let mut results = Vec::new();
+        for check in &self.checks {
+            if check.is_continous() {
+                results.extend(check.check(states).await);
+            }
         }
         results
     }
