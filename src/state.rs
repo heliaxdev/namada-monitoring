@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use anyhow::anyhow;
 use namada_sdk::{ibc::IbcMessage, proof_of_stake::types::ValidatorState};
@@ -15,6 +15,7 @@ pub struct BlockState {
     pub unbonds: u64,
     pub validators: Vec<Validator>,
     pub supplies: Vec<Supply>,
+    pub mint_limit: HashMap<String, u64>,
 }
 
 impl BlockState {
@@ -24,6 +25,7 @@ impl BlockState {
         unbonds: u64,
         validators: Vec<Validator>,
         supplies: Vec<Supply>,
+        mint_limit: HashMap<String, u64>,
     ) -> Self {
         Self {
             block,
@@ -31,6 +33,7 @@ impl BlockState {
             unbonds,
             validators,
             supplies,
+            mint_limit,
         }
     }
 

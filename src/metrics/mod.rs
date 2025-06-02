@@ -2,6 +2,7 @@ mod block;
 mod bonds;
 mod epoch;
 mod fees;
+mod ibc;
 mod signatures;
 mod slashes;
 mod token_total_supply;
@@ -16,6 +17,7 @@ use block::Block;
 use bonds::Bonds;
 use epoch::Epoch;
 use fees::Fees;
+use ibc::Ibc;
 use signatures::Signatures;
 use slashes::Slashes;
 use token_total_supply::TokenTotalSupply;
@@ -78,6 +80,7 @@ impl MetricsExporter {
             Box::<Signatures>::default() as Box<dyn MetricTrait>,
             Box::<Slashes>::default() as Box<dyn MetricTrait>,
             Box::<ValidatorState>::default() as Box<dyn MetricTrait>,
+            Box::<Ibc>::default() as Box<dyn MetricTrait>,
         ]
     }
 

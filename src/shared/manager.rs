@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use tokio::sync::RwLock;
 
@@ -75,16 +75,19 @@ impl Manager {
         let (bonds, unbonds) = self.rpc.query_future_bonds_and_unbonds(epoch).await?;
 
         let mut supplies = vec![];
+        let mut mint_limit = HashMap::new();
         for (alias, address) in tokens {
             let supply = if alias.contains("nam") {
                 self.rpc.query_native_token_supply(&address).await?
             } else {
                 self.rpc.query_token_supply(&address).await?
             };
+            let limit = self.rpc.query_token_ibc_limit(&address).await?;
+            mint_limit.insert(address.clone(), limit);
             supplies.push(supply);
         }
 
-        let block_state = BlockState::new(block, bonds, unbonds, validators, supplies);
+        let block_state = BlockState::new(block, bonds, unbonds, validators, supplies, mint_limit);
         self.state.add_block(block_state.clone());
 
         Ok(())
