@@ -249,4 +249,13 @@ impl Rpc {
             token: token.to_string(),
         })
     }
+
+    pub async fn query_token_ibc_limit(&self, token: &str) -> anyhow::Result<u64> {
+        let token = NamadaAddress::from_str(token)
+            .context("Should be able to convert string to address")?;
+        let res = rpc::query_ibc_rate_limits(&self.client, &token).await;
+
+        res.context("Should be able to query token IBC limit")
+            .map(|amount| amount.mint_limit.raw_amount().as_u64())
+    }
 }

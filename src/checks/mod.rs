@@ -3,6 +3,7 @@ mod fees;
 mod gas;
 mod halt;
 mod ibc;
+mod ibc_limit;
 mod pos;
 mod slashes;
 mod tx;
@@ -13,6 +14,7 @@ use fees::FeeCheck;
 use gas::GasCheck;
 use halt::HaltCheck;
 use ibc::IbcCheck;
+use ibc_limit::IbcLimitCheck;
 use pos::PoSCheck;
 use slashes::SlashCheck;
 use tx::TxCheck;
@@ -42,6 +44,7 @@ impl CheckManager {
             Box::new(GasCheck::new(config)),
             Box::new(IbcCheck::new(config)),
             Box::new(SlashCheck::default()),
+            Box::new(IbcLimitCheck::default()),
         ];
         Self { checks }
     }

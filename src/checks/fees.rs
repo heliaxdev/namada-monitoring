@@ -60,7 +60,7 @@ impl CheckTrait for FeeCheck {
                         None
                     } else {
                         let title = "Fee too high".to_string();
-                        let description = format!("The transaction {} paid a fee of {} {}, which is above the threshold of {} {}.", tx_id, fee, threshold.name, threshold.value, threshold.name);
+                        let description = format!("The transaction *{}* paid a fee of *{}* _{}_, which is above the threshold of *{}* _{}_.", tx_id, fee, threshold.name, threshold.value, threshold.name);
                         Some(Alert {
                             check_id: FEE_CHECK_ID.to_string(),
                             title,
