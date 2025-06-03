@@ -26,7 +26,7 @@ impl CheckTrait for GasCheck {
                         check_id: GAS_CHECK_ID.to_string(),
                         title: "Gas limit too high".to_string(),
                         description: format!(
-                            "Gas limit is for tx {} too high: gas limit is *{}*, gas used is *{}*",
+                            "Gas limit is for tx *{}* too high: gas limit is *{}*, gas used is *{}*",
                             transaction.id, gas_limit, gas_used
                         ),
                         metadata: Metadata {
