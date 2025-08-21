@@ -5,6 +5,7 @@ use crate::shared::{
 };
 use anyhow::Context;
 
+use crate::shared::client::Client as OwnClient;
 use namada_sdk::tendermint::block::Height as TenderHeight;
 use namada_sdk::{
     address::Address as NamadaAddress,
@@ -12,23 +13,17 @@ use namada_sdk::{
     proof_of_stake::types::ValidatorState,
     rpc,
     state::{Epoch as NamadaEpoch, Key},
-    tendermint_rpc::Client,
 };
 use std::str::FromStr;
-use tendermint_rpc::client::CompatMode;
-use tendermint_rpc::{HttpClient, HttpClientUrl, Url};
+use tendermint_rpc::Client;
 
 pub struct Rpc {
-    client: HttpClient,
+    client: OwnClient,
 }
 
 impl Rpc {
     pub async fn new(url: &str) -> anyhow::Result<Self> {
-        let url = Url::from_str(url).context(format!("Invalid URL: {}", url))?;
-        let client = HttpClient::builder(HttpClientUrl::try_from(url.clone()).unwrap())
-            .compat_mode(CompatMode::V0_37)
-            .build()
-            .context(format!("Failed to create client for URL: {}", url))?;
+        let client = OwnClient::new(url);
 
         Ok(Self { client })
     }
@@ -54,7 +49,7 @@ impl Rpc {
         let hash_key = Key::wasm_hash(tx_code_path);
 
         let res =
-            rpc::query_storage_value_bytes(&self.client, &hash_key, Some(height.into()), false)
+            rpc::query_storage_value_bytes(self.client.as_ref(), &hash_key, Some(height.into()), false)
                 .await;
 
         if let Some(tx_code_bytes) = res.context("Should be able to get tx code")?.0 {
@@ -70,14 +65,14 @@ impl Rpc {
         &self,
         block_height: Height,
     ) -> anyhow::Result<Option<Epoch>> {
-        let res = rpc::query_epoch_at_height(&self.client, block_height.into()).await;
+        let res = rpc::query_epoch_at_height(self.client.as_ref(), block_height.into()).await;
 
         res.map(|epoch| epoch.map(|epoch| epoch.0))
             .context("Should be able to get epoch")
     }
 
     pub async fn query_lastest_height(&self) -> anyhow::Result<u32> {
-        let res = self.client.latest_block().await;
+        let res = self.client.as_ref().latest_block().await;
 
         res.map(|response| response.block.header.height.value() as u32)
             .context("Should be able to query for block")
@@ -91,13 +86,13 @@ impl Rpc {
     ) -> anyhow::Result<Block> {
         let block_height = TenderHeight::try_from(block_height).unwrap();
 
-        let events_res = self.client.block_results(block_height).await;
+        let events_res = self.client.as_ref().block_results(block_height).await;
         let events = events_res.map(BlockResult::from).context(format!(
             "Should be able to query for block events for height: {}",
             block_height
         ))?;
 
-        let block = self.client.block(block_height).await;
+        let block = self.client.as_ref().block(block_height).await;
         block
             .map(|response| Block::from(response, events, checksums, epoch))
             .context(format!(
@@ -111,7 +106,7 @@ impl Rpc {
         validator: &NamadaAddress,
         epoch: Epoch,
     ) -> anyhow::Result<ValidatorState> {
-        let res = rpc::get_validator_state(&self.client, validator, Some(epoch.into())).await;
+        let res = rpc::get_validator_state(self.client.as_ref(), validator, Some(epoch.into())).await;
         let (validator_state, _epoch) = res.context("Should be able to query validator state")?;
 
         match validator_state {
@@ -125,14 +120,14 @@ impl Rpc {
         validator: &NamadaAddress,
         epoch: Epoch,
     ) -> anyhow::Result<u64> {
-        let res = rpc::get_validator_stake(&self.client, epoch.into(), validator).await;
+        let res = rpc::get_validator_stake(self.client.as_ref(), epoch.into(), validator).await;
         let stake = res.context("Should be able to query validator stake")?;
 
         Ok(stake.raw_amount().as_u64())
     }
 
     pub async fn query_validators(&self, epoch: Epoch) -> anyhow::Result<Vec<Validator>> {
-        let res = rpc::get_all_validators(&self.client, NamadaEpoch(epoch)).await;
+        let res = rpc::get_all_validators(self.client.as_ref(), NamadaEpoch(epoch)).await;
 
         let validators = res.context("Should be able to query native token")?;
         let futures = validators.into_iter().map(|validator_address| {
@@ -160,7 +155,7 @@ impl Rpc {
     }
 
     pub async fn query_native_token(&self) -> anyhow::Result<Address> {
-        let res = rpc::query_native_token(&self.client).await;
+        let res = rpc::query_native_token(self.client.as_ref()).await;
 
         res.context("Should be able to query native token")
             .map(|address| address.to_string())
@@ -169,14 +164,14 @@ impl Rpc {
     pub async fn query_total_supply(&self, native_token: &str) -> anyhow::Result<u64> {
         let address = NamadaAddress::from_str(native_token)
             .context("Should be able to convert string to address")?;
-        let res = rpc::get_token_total_supply(&self.client, &address).await;
+        let res = rpc::get_token_total_supply(self.client.as_ref(), &address).await;
 
         res.context("Should be able to query native token")
             .map(|amount| amount.raw_amount().as_u64())
     }
 
     pub async fn query_max_block_time_estimate(&self) -> anyhow::Result<u64> {
-        let res = rpc::query_max_block_time_estimate(&self.client).await;
+        let res = rpc::query_max_block_time_estimate(self.client.as_ref()).await;
 
         res.context("Should be able to query max block time estimate")
             .map(|amount| amount.0)
@@ -184,7 +179,7 @@ impl Rpc {
 
     pub async fn query_future_bonds_and_unbonds(&self, epoch: Epoch) -> anyhow::Result<(u64, u64)> {
         let pipeline_epoch = NamadaEpoch(epoch + 1);
-        let res = rpc::enriched_bonds_and_unbonds(&self.client, pipeline_epoch, &None, &None).await;
+        let res = rpc::enriched_bonds_and_unbonds(self.client.as_ref(), pipeline_epoch, &None, &None).await;
 
         res.context("Should be able to query bonds and unbonds")
             .map(|summary| {
@@ -207,7 +202,7 @@ impl Rpc {
         height: Height,
     ) -> anyhow::Result<Option<Vec<u8>>> {
         let res =
-            rpc::query_storage_value_bytes(&self.client, key, Some(height.into()), false).await;
+            rpc::query_storage_value_bytes(self.client.as_ref(), key, Some(height.into()), false).await;
 
         let result = res.context("Should be able to query storage at height");
         match result {
@@ -220,8 +215,8 @@ impl Rpc {
     pub async fn query_native_token_supply(&self, token: &str) -> anyhow::Result<Supply> {
         let address = NamadaAddress::from_str(token)
             .context("Should be able to convert string to address")?;
-        let total_supply_res = rpc::get_token_total_supply(&self.client, &address).await;
-        let effect_supply_res = rpc::get_effective_native_supply(&self.client).await;
+        let total_supply_res = rpc::get_token_total_supply(self.client.as_ref(), &address).await;
+        let effect_supply_res = rpc::get_effective_native_supply(self.client.as_ref()).await;
 
         let total_native_supply = total_supply_res
             .context("Should be able to query total supply native token")
@@ -240,7 +235,7 @@ impl Rpc {
     pub async fn query_token_supply(&self, token: &str) -> anyhow::Result<Supply> {
         let address = NamadaAddress::from_str(token)
             .context("Should be able to convert string to address")?;
-        let total_supply_res = rpc::get_token_total_supply(&self.client, &address).await?;
+        let total_supply_res = rpc::get_token_total_supply(self.client.as_ref(), &address).await?;
         let total_supply = total_supply_res.raw_amount().as_u64();
 
         Ok(Supply {
@@ -253,7 +248,7 @@ impl Rpc {
     pub async fn query_token_ibc_limit(&self, token: &str) -> anyhow::Result<u64> {
         let token = NamadaAddress::from_str(token)
             .context("Should be able to convert string to address")?;
-        let res = rpc::query_ibc_rate_limits(&self.client, &token).await;
+        let res = rpc::query_ibc_rate_limits(self.client.as_ref(), &token).await;
 
         res.context("Should be able to query token IBC limit")
             .map(|amount| amount.mint_limit.raw_amount().as_u64())

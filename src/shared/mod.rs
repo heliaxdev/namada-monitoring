@@ -5,3 +5,4 @@ pub mod config;
 pub mod manager;
 pub mod namada;
 pub mod supply;
+pub mod client;
