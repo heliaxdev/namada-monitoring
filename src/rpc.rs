@@ -48,9 +48,13 @@ impl Rpc {
     ) -> anyhow::Result<Option<String>> {
         let hash_key = Key::wasm_hash(tx_code_path);
 
-        let res =
-            rpc::query_storage_value_bytes(self.client.as_ref(), &hash_key, Some(height.into()), false)
-                .await;
+        let res = rpc::query_storage_value_bytes(
+            self.client.as_ref(),
+            &hash_key,
+            Some(height.into()),
+            false,
+        )
+        .await;
 
         if let Some(tx_code_bytes) = res.context("Should be able to get tx code")?.0 {
             Ok(Hash::try_from(&tx_code_bytes[..])
@@ -106,7 +110,8 @@ impl Rpc {
         validator: &NamadaAddress,
         epoch: Epoch,
     ) -> anyhow::Result<ValidatorState> {
-        let res = rpc::get_validator_state(self.client.as_ref(), validator, Some(epoch.into())).await;
+        let res =
+            rpc::get_validator_state(self.client.as_ref(), validator, Some(epoch.into())).await;
         let (validator_state, _epoch) = res.context("Should be able to query validator state")?;
 
         match validator_state {
@@ -179,7 +184,9 @@ impl Rpc {
 
     pub async fn query_future_bonds_and_unbonds(&self, epoch: Epoch) -> anyhow::Result<(u64, u64)> {
         let pipeline_epoch = NamadaEpoch(epoch + 1);
-        let res = rpc::enriched_bonds_and_unbonds(self.client.as_ref(), pipeline_epoch, &None, &None).await;
+        let res =
+            rpc::enriched_bonds_and_unbonds(self.client.as_ref(), pipeline_epoch, &None, &None)
+                .await;
 
         res.context("Should be able to query bonds and unbonds")
             .map(|summary| {
@@ -202,7 +209,8 @@ impl Rpc {
         height: Height,
     ) -> anyhow::Result<Option<Vec<u8>>> {
         let res =
-            rpc::query_storage_value_bytes(self.client.as_ref(), key, Some(height.into()), false).await;
+            rpc::query_storage_value_bytes(self.client.as_ref(), key, Some(height.into()), false)
+                .await;
 
         let result = res.context("Should be able to query storage at height");
         match result {
