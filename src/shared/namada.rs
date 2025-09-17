@@ -76,6 +76,10 @@ impl Wrapper {
     pub fn get_gas_used(&self) -> f64 {
         self.fee.gas_used as f64
     }
+
+    pub fn is_successful(&self) -> bool {
+        self.status.was_applied()
+    }
 }
 
 #[derive(Debug, Clone)]
