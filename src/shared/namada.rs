@@ -76,6 +76,10 @@ impl Wrapper {
     pub fn get_gas_used(&self) -> f64 {
         self.fee.gas_used as f64
     }
+
+    pub fn is_successful(&self) -> bool {
+        self.status.was_applied()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -264,7 +268,7 @@ pub enum TxEventStatusCode {
 impl From<&str> for TxEventStatusCode {
     fn from(value: &str) -> Self {
         match value {
-            "1" => Self::Ok,
+            "0" => Self::Ok,
             _ => Self::Fail,
         }
     }
@@ -544,6 +548,8 @@ pub enum TransferKind {
     Native,
     Shielding,
     Unshielding,
+    Shielded,
+    Mixed,
 }
 
 #[derive(Clone, Debug)]

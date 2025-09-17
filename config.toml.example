@@ -6,7 +6,7 @@ block_endpoint = "/blocks/{block_height}"
 [chain]
 block_time = 9
 block_time_max_deviation = 0.1
-halt_threshold = 100
+halt_threshold = 120
 
 [pos]
 mininimum_one_third_validators = 2
@@ -20,11 +20,11 @@ threshold_sections = 5
 threshold_batch = 5
 gas_limit_threshold = 0.5
 
-[[fees]]
+[[token]]
 alias = "nam"
 token = "tnam1...."
-threshold = 0.0
-
+fee_threshold = 0.0
+transfer_limit = 0
 
 [slack]
 slack_webhook = "example"

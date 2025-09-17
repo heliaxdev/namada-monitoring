@@ -6,6 +6,7 @@ mod ibc;
 mod ibc_limit;
 mod pos;
 mod slashes;
+mod transfer_limit;
 mod tx;
 
 use async_trait::async_trait;
@@ -17,6 +18,7 @@ use ibc::IbcCheck;
 use ibc_limit::IbcLimitCheck;
 use pos::PoSCheck;
 use slashes::SlashCheck;
+use transfer_limit::TransferLimitCheck;
 use tx::TxCheck;
 
 pub use crate::config::AppConfig;
@@ -43,6 +45,7 @@ impl CheckManager {
             Box::new(HaltCheck::new(config)),
             Box::new(GasCheck::new(config)),
             Box::new(IbcCheck::new(config)),
+            Box::new(TransferLimitCheck::new(config)),
             Box::new(SlashCheck::default()),
             Box::new(IbcLimitCheck::default()),
         ];

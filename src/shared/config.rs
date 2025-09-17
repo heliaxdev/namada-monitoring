@@ -9,15 +9,16 @@ pub struct Config {
     pub pos: Pos,
     pub tx: Tx,
     pub ibcs: Vec<Ibc>,
-    pub fees: Vec<FeeThreshold>,
+    pub tokens: Vec<TokenConfig>,
     pub slack: Option<SlackAlertConfig>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct FeeThreshold {
+pub struct TokenConfig {
     pub alias: String,
     pub token: String,
-    pub threshold: f64,
+    pub fee_threshold: f64,
+    pub transfer_threshold: u64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -60,9 +61,23 @@ pub struct SlackAlertConfig {
 
 impl Config {
     pub fn tokens(&self) -> Vec<(String, String)> {
-        self.fees
+        self.tokens
             .iter()
-            .map(|fee| (fee.alias.clone(), fee.token.clone()))
+            .map(|token| (token.alias.clone(), token.token.clone()))
+            .collect()
+    }
+
+    pub fn tokens_thresholds(&self) -> Vec<(String, u64)> {
+        self.tokens
+            .iter()
+            .map(|token| (token.token.clone(), token.transfer_threshold))
+            .collect()
+    }
+
+    pub fn tokens_fees(&self) -> Vec<(String, f64)> {
+        self.tokens
+            .iter()
+            .map(|token| (token.token.clone(), token.fee_threshold))
             .collect()
     }
 

@@ -22,14 +22,12 @@ pub struct FeeCheck {
 
 impl FeeCheck {
     fn populate_thresholds(&mut self, config: &AppConfig) {
-        for fee in config.get_config().fees.iter() {
-            let token = fee.token.clone();
-            let threshold = fee.threshold * MICRO;
+        for (token, threshold) in config.get_config().tokens_fees() {
             self.thresholds.insert(
                 token.clone(),
                 DefaultFeeThreshold {
                     name: token,
-                    value: threshold,
+                    value: threshold * MICRO,
                 },
             );
         }
