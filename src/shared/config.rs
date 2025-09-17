@@ -18,7 +18,7 @@ pub struct TokenConfig {
     pub alias: String,
     pub token: String,
     pub fee_threshold: f64,
-    pub transfer_threshold: u64,
+    pub transfer_threshold: u64
 }
 
 #[derive(Debug, Clone, Deserialize)]

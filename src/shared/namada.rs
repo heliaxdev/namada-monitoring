@@ -268,7 +268,7 @@ pub enum TxEventStatusCode {
 impl From<&str> for TxEventStatusCode {
     fn from(value: &str) -> Self {
         match value {
-            "1" => Self::Ok,
+            "0" => Self::Ok,
             _ => Self::Fail,
         }
     }
@@ -548,6 +548,8 @@ pub enum TransferKind {
     Native,
     Shielding,
     Unshielding,
+    Shielded,
+    Mixed
 }
 
 #[derive(Clone, Debug)]

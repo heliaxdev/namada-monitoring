@@ -1,12 +1,18 @@
 use std::collections::{BTreeMap, HashMap};
 
 use anyhow::anyhow;
-use namada_sdk::{ibc::IbcMessage, proof_of_stake::types::ValidatorState};
+use namada_sdk::{
+    address::Address, ibc::IbcMessage, proof_of_stake::types::ValidatorState,
+    token::Transfer as NamadaTransfer,
+};
 
 use crate::shared::{
     namada::{Block, Inner, InnerKind, Transfer, TransferKind, Validator, Wrapper},
     supply::Supply,
 };
+
+pub(crate) const MASP_ADDRESS: Address =
+    Address::Internal(namada_sdk::address::InternalAddress::Masp);
 
 #[derive(Debug, Clone)]
 pub struct BlockState {
@@ -180,5 +186,43 @@ impl State {
             }
         }
         transfers
+    }
+
+    #[allow(dead_code)]
+    fn is_masp(data: NamadaTransfer) -> Option<TransferKind> {
+        let has_shielded_section = data.shielded_section_hash.is_some();
+        if has_shielded_section && data.sources.is_empty() && data.targets.is_empty() {
+            return Some(TransferKind::Shielded);
+        }
+
+        let (all_sources_are_masp, any_sources_are_masp) =
+            data.sources
+                .iter()
+                .fold((true, false), |(all, any), (acc, _)| {
+                    let is_masp = acc.owner.eq(&MASP_ADDRESS);
+                    (all && is_masp, any || is_masp)
+                });
+
+        let (all_targets_are_masp, any_targets_are_masp) =
+            data.targets
+                .iter()
+                .fold((true, false), |(all, any), (acc, _)| {
+                    let is_masp = acc.owner.eq(&MASP_ADDRESS);
+                    (all && is_masp, any || is_masp)
+                });
+
+        match (
+            all_sources_are_masp,
+            any_sources_are_masp,
+            all_targets_are_masp,
+            any_targets_are_masp,
+            has_shielded_section,
+        ) {
+            (true, _, true, _, true) => Some(TransferKind::Shielded),
+            (true, _, _, false, true) => Some(TransferKind::Unshielding),
+            (_, false, true, _, true) => Some(TransferKind::Shielding),
+            (_, false, _, false, false) => None,
+            _ => Some(TransferKind::Mixed),
+        }
     }
 }
