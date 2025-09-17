@@ -78,8 +78,8 @@ impl AlertTrait for SlackAlert {
 
         let message = if matches!(alert.severity, Severity::Critical | Severity::High) {
             format!(
-                "{}\n
-                Ping: {}",
+                "{}\n\
+                *Ping*: {}",
                 message,
                 self.mentions.join(" ")
             )
