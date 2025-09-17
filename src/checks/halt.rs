@@ -79,7 +79,7 @@ impl CheckTrait for HaltCheck {
                             None,
                         ),
                         trigger_after: Some(Duration::from_secs(60)),
-                        continous: self.is_continous()
+                        continous: self.is_continous(),
                     });
                 }
             }

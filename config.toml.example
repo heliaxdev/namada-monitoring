@@ -29,6 +29,7 @@ threshold = 0.0
 [slack]
 slack_webhook = "example"
 channel = "example"
+mentions = ["@handle"]
 
 [[ibc]]
 alias = "example"

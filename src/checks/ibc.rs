@@ -127,7 +127,7 @@ impl CheckTrait for IbcCheck {
                         None, None
                     ),
                     trigger_after: Some(Duration::from_secs(60 * 60)),
-                    continous: true
+                    continous: self.is_continous(),
                 });
             };
         }

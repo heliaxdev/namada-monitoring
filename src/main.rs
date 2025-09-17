@@ -76,6 +76,7 @@ async fn main() -> anyhow::Result<()> {
                     index,
                     all_alerts.len()
                 );
+
                 Ok(())
             },
             |_e: &std::io::Error| !must_exit_handle.load(atomic::Ordering::Relaxed),

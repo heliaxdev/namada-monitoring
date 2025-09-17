@@ -44,7 +44,7 @@ impl CheckTrait for SlashCheck {
                         severity: Severity::Low,
                         check_id: SLASHES_CHECK_ID.to_string(),
                         trigger_after: None,
-                        continous: self.is_continous()
+                        continous: self.is_continous(),
                     }
                 }
                 evidence::Evidence::LightClientAttack(light_client_attack_evidence) => {

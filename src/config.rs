@@ -23,6 +23,9 @@ pub struct AppConfig {
     #[clap(long, env, default_value_t = 3)]
     pub sleep_for: u64,
 
+    #[clap(long, env, default_value_t = true)]
+    pub dry_run: bool,
+
     #[clap(flatten)]
     pub log: LogConfig,
 }

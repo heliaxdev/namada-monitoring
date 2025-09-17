@@ -71,7 +71,7 @@ impl CheckTrait for FeeCheck {
                             ),
                             severity: Severity::Low,
                             trigger_after: None,
-                        continous: self.is_continous()
+                            continous: self.is_continous(),
                         })
                     }
                 },

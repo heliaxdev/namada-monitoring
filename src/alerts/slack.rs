@@ -2,7 +2,11 @@ use async_trait::async_trait;
 use reqwest::Client;
 use serde::Serialize;
 
-use crate::shared::{alert::Alert, block_explorer::BlockExplorer, config::SlackAlertConfig};
+use crate::shared::{
+    alert::{Alert, Severity},
+    block_explorer::BlockExplorer,
+    config::SlackAlertConfig,
+};
 
 use super::AlertTrait;
 
@@ -38,6 +42,7 @@ pub struct SlackAlert {
     pub slack_hook_url: String,
     pub channel: String,
     pub network_id: String,
+    pub mentions: Vec<String>,
 }
 
 #[async_trait]
@@ -70,6 +75,17 @@ impl AlertTrait for SlackAlert {
                 .unwrap_or_else(|| "N/A".to_string()),
             network = self.network_id,
         );
+
+        let message = if matches!(alert.severity, Severity::Critical | Severity::High) {
+            format!(
+                "{}\n
+                Ping: {}",
+                message,
+                self.mentions.join(" ")
+            )
+        } else {
+            message
+        };
 
         let payload = SlackPayload {
             username: "Namada Alert Manager".into(),
@@ -172,6 +188,7 @@ impl SlackAlert {
             slack_hook_url: slack_config.slack_webhook,
             channel: slack_config.channel,
             network_id,
+            mentions: slack_config.mentions,
         }
     }
 }

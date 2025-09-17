@@ -55,6 +55,7 @@ pub struct Ibc {
 pub struct SlackAlertConfig {
     pub slack_webhook: String,
     pub channel: String,
+    pub mentions: Vec<String>,
 }
 
 impl Config {
