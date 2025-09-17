@@ -549,7 +549,7 @@ pub enum TransferKind {
     Shielding,
     Unshielding,
     Shielded,
-    Mixed
+    Mixed,
 }
 
 #[derive(Clone, Debug)]

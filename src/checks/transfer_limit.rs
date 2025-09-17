@@ -70,7 +70,7 @@ impl CheckTrait for TransferLimitCheck {
                                     continue;
                                 };
 
-                            if !(amount.amount() > token_threshold) {
+                            if amount.amount() <= token_threshold {
                                 continue;
                             }
 
