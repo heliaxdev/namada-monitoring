@@ -23,8 +23,8 @@ gas_limit_threshold = 0.5
 [[fees]]
 alias = "nam"
 token = "tnam1...."
-threshold = 0.0
-
+fee_threshold = 0.0
+transfer_limit = 0
 
 [slack]
 slack_webhook = "example"
