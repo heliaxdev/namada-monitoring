@@ -1,3 +1,4 @@
 /target
 apprise-api
 config.toml
+.env
