@@ -1,5 +1,6 @@
 pub mod log;
 pub mod slack;
+pub mod telegram;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -19,24 +20,38 @@ pub struct AlertManager {
 impl AlertManager {
     pub fn new(app_config: &AppConfig) -> Self {
         let config = app_config.get_config();
+        let any_alert_config = config.slack.is_some() || config.telegram.is_some();
+
+        if !any_alert_config {
+            return Self {
+                communication: vec![Box::new(Log::new(config.block_explorer.clone()))],
+                on_fire: TtlCache::new(100),
+            };
+        };
+
+        let mut alerts: Vec<Box<dyn AlertTrait>> = vec![];
+
         if let Some(slack_config) = config.slack.clone() {
             let slack_alert = slack::SlackAlert::new(
                 config.block_explorer.clone(),
                 slack_config,
                 app_config.chain_id.clone(),
             );
-            Self {
-                communication: vec![
-                    Box::new(slack_alert),
-                    Box::new(Log::new(config.block_explorer.clone())),
-                ],
-                on_fire: TtlCache::new(100),
-            }
-        } else {
-            Self {
-                communication: vec![Box::new(Log::new(config.block_explorer.clone()))],
-                on_fire: TtlCache::new(100),
-            }
+            alerts.push(Box::new(slack_alert));
+        };
+
+        if let Some(telegram_config) = config.telegram.clone() {
+            let telegram_alert = telegram::TelegramAlert::new(
+                config.block_explorer.clone(),
+                telegram_config,
+                app_config.chain_id.clone(),
+            );
+            alerts.push(Box::new(telegram_alert));
+        };
+
+        Self {
+            communication: alerts,
+            on_fire: TtlCache::new(100),
         }
     }
 
