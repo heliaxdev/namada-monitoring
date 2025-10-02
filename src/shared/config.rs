@@ -35,6 +35,7 @@ pub struct Pos {
     pub bond_increase_threshold: f64,
     pub unbond_increase_threshold: f64,
     pub consensus_threshold: f64,
+    pub threshold_missed_votes: f64,
 }
 
 #[derive(Debug, Clone, Deserialize)]

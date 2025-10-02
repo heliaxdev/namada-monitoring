@@ -7,6 +7,7 @@ const POS_TWO_THIRD_CHECK_ID: &str = "pos_one_third_check";
 const POS_BONDS_CHECK_ID: &str = "pos_bonds_check";
 const POS_UNBONDS_CHECK_ID: &str = "pos_unbonds_check";
 const POS_CONSENSUS_CHECK_ID: &str = "pos_consensus_check";
+const POS_MISSED_VOTES_CHECK_ID: &str = "pos_missed_votes_check";
 
 pub struct PoSCheck {
     mininimum_one_third_validators: u64,
@@ -14,6 +15,7 @@ pub struct PoSCheck {
     bond_increase_threshold: f64,
     unbond_increase_threshold: f64,
     consensus_threshold: f64,
+    threshold_missed_votes: f64,
 }
 
 impl PoSCheck {
@@ -25,6 +27,7 @@ impl PoSCheck {
             bond_increase_threshold: config.pos.bond_increase_threshold,
             unbond_increase_threshold: config.pos.unbond_increase_threshold,
             consensus_threshold: config.pos.consensus_threshold,
+            threshold_missed_votes: config.pos.threshold_missed_votes,
         }
     }
 }
@@ -136,6 +139,34 @@ impl CheckTrait for PoSCheck {
                 },
                 severity: crate::shared::alert::Severity::Low,
                 trigger_after: Some(Duration::from_secs(60 * 60)),
+                continous: self.is_continous(),
+            });
+        }
+
+        let total_validators = last_state.consensus_validators().len();
+        let total_votes = last_state.block.block.last_commit.unwrap().signatures.len();
+
+        let missed_votes_percentage = if total_validators > 0 {
+            1.0 - (total_votes as f64 / total_validators as f64)
+        } else {
+            0.0
+        };
+
+        if missed_votes_percentage > self.threshold_missed_votes {
+            alerts.push(crate::shared::alert::Alert {
+                check_id: POS_MISSED_VOTES_CHECK_ID.to_string(),
+                title: "High missed votes percentage".to_string(),
+                description: format!(
+                    "Missed votes percentage is {:.2}% which is above the threshold of {:.2}%",
+                    missed_votes_percentage * 100.0,
+                    self.threshold_missed_votes * 100.0
+                ),
+                metadata: crate::shared::alert::Metadata {
+                    block_height: Some(last_state.block.height as u32),
+                    tx_id: None,
+                },
+                severity: crate::shared::alert::Severity::Medium,
+                trigger_after: None,
                 continous: self.is_continous(),
             });
         }
