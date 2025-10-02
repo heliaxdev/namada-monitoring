@@ -14,6 +14,7 @@ mininimum_two_third_validators = 4
 bond_increase_threshold = 0.1
 unbond_increase_threshold = 0.1
 consensus_threshold = 0.1
+threshold_missed_votes = 0.1
 
 [tx]
 threshold_sections = 5
