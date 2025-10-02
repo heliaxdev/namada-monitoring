@@ -1,5 +1,3 @@
-
-
 use std::fmt::Display;
 
 use crate::shared::alert::Metadata;
@@ -55,7 +53,11 @@ impl CheckTrait for GasCheck {
 
 impl Display for GasCheck {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "GasCheck(gas_limit_threshold: {})", self.gas_limit_threshold)
+        write!(
+            f,
+            "GasCheck(gas_limit_threshold: {})",
+            self.gas_limit_threshold
+        )
     }
 }
 

@@ -1,4 +1,7 @@
-use std::{fmt::Display, time::{Duration, SystemTime, UNIX_EPOCH}};
+use std::{
+    fmt::Display,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
 use crate::shared::alert::{Alert, Metadata, Severity};
 

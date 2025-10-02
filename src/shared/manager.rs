@@ -51,10 +51,7 @@ impl Manager {
             tracing::info!("Loaded check: {}", check);
         }
 
-        (
-            Arc::new(RwLock::new(manager)),
-            initial_block_height,
-        )
+        (Arc::new(RwLock::new(manager)), initial_block_height)
     }
 
     pub fn has_enough_blocks(&self) -> bool {
@@ -66,7 +63,11 @@ impl Manager {
         block_height: u64,
         tokens: Vec<(String, String)>,
     ) -> anyhow::Result<()> {
-        let last_epoch = self.state.last_block().block.epoch;
+        let last_epoch = if self.has_enough_blocks() {
+            self.state.last_block().block.epoch
+        } else {
+            0
+        };
 
         let checksums = self.rpc.query_checksums_at_height(block_height).await?;
         let epoch = self

@@ -17,7 +17,9 @@ pub use crate::config::AppConfig;
 pub use crate::state::State;
 use crate::{
     checks::{
-        block::BlockCheck, fees::FeeCheck, gas::GasCheck, halt::HaltCheck, ibc::IbcCheck, ibc_limit::IbcLimitCheck, pos::PoSCheck, slashes::SlashCheck, transfer_limit::TransferLimitCheck, tx::TxCheck
+        block::BlockCheck, fees::FeeCheck, gas::GasCheck, halt::HaltCheck, ibc::IbcCheck,
+        ibc_limit::IbcLimitCheck, pos::PoSCheck, slashes::SlashCheck,
+        transfer_limit::TransferLimitCheck, tx::TxCheck,
     },
     shared::alert::Alert,
 };

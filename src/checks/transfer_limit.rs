@@ -150,6 +150,10 @@ impl CheckTrait for TransferLimitCheck {
 
 impl Display for TransferLimitCheck {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "TransferLimitCheck with {} thresholds", self.thresholds.len())
+        write!(
+            f,
+            "TransferLimitCheck with {} thresholds",
+            self.thresholds.len()
+        )
     }
 }
