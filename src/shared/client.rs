@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use reqwest::header;
 use tendermint_rpc::HttpClient;
 
@@ -13,6 +15,9 @@ impl Client {
         let url = ur.parse().expect("Invalid URL");
         let inner = reqwest::Client::builder()
             .cookie_store(true)
+            .tcp_keepalive(Duration::from_secs(30))
+            .pool_idle_timeout(Duration::from_secs(50))
+            .pool_max_idle_per_host(90)
             .default_headers(headers)
             .build()
             .expect("Failed to create HTTP client");

@@ -10,20 +10,17 @@ mod transfer_limit;
 mod tx;
 
 use async_trait::async_trait;
-use block::BlockCheck;
-use fees::FeeCheck;
-use gas::GasCheck;
 use halt::HaltCheck;
-use ibc::IbcCheck;
-use ibc_limit::IbcLimitCheck;
-use pos::PoSCheck;
-use slashes::SlashCheck;
-use transfer_limit::TransferLimitCheck;
-use tx::TxCheck;
 
 pub use crate::config::AppConfig;
-use crate::shared::alert::Alert;
 pub use crate::state::State;
+use crate::{
+    checks::{
+        block::BlockCheck, fees::FeeCheck, gas::GasCheck, ibc::IbcCheck, ibc_limit::IbcLimitCheck,
+        pos::PoSCheck, slashes::SlashCheck, transfer_limit::TransferLimitCheck, tx::TxCheck,
+    },
+    shared::alert::Alert,
+};
 
 #[async_trait]
 pub trait CheckTrait: Send + Sync {

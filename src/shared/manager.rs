@@ -60,6 +60,8 @@ impl Manager {
         block_height: u64,
         tokens: Vec<(String, String)>,
     ) -> anyhow::Result<()> {
+        let last_epoch = self.state.last_block().block.epoch;
+
         let checksums = self.rpc.query_checksums_at_height(block_height).await?;
         let epoch = self
             .rpc
@@ -71,7 +73,11 @@ impl Manager {
             .query_block_at_height(block_height, &checksums, epoch)
             .await?;
 
-        let validators = self.rpc.query_validators(epoch).await?;
+        let validators = if epoch.eq(&last_epoch) {
+            self.state.last_block().validators.clone()
+        } else {
+            self.rpc.query_validators(epoch).await?
+        };
         let (bonds, unbonds) = self.rpc.query_future_bonds_and_unbonds(epoch).await?;
 
         let mut supplies = vec![];

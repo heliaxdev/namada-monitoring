@@ -28,6 +28,7 @@ ttl_cache = "0.5.1"
 async-trait = "0.1.88"
 chrono = "0.4.41"
 prost = "0.13"
+rlimit = "0.10.2"
 
 [build-dependencies]
 vergen = { version = "8.0.0", features = ["build", "git", "gitcl"] }

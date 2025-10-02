@@ -28,6 +28,9 @@ async fn main() -> anyhow::Result<()> {
     let config = AppConfig::parse();
     config.log.init();
 
+    rlimit::increase_nofile_limit(10240).unwrap();
+    rlimit::increase_nofile_limit(u64::MAX).unwrap();
+
     let tokens = config.get_config().tokens();
 
     tracing::info!("{:#?}", config.get_config());
@@ -89,7 +92,7 @@ async fn main() -> anyhow::Result<()> {
 }
 
 fn notify(err: &std::io::Error, duration: std::time::Duration) {
-    tracing::debug!("Error {err:?} occurred at {duration:?}");
+    tracing::info!("Error {err:?} occurred at {duration:?}");
 }
 
 fn retry_strategy(sleep_for: u64) -> FixedInterval {

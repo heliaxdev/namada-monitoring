@@ -4,6 +4,7 @@ use crate::shared::{
     supply::Supply,
 };
 use anyhow::Context;
+use futures::StreamExt;
 
 use crate::shared::client::Client as OwnClient;
 use namada_sdk::tendermint::block::Height as TenderHeight;
@@ -135,11 +136,10 @@ impl Rpc {
         let res = rpc::get_all_validators(self.client.as_ref(), NamadaEpoch(epoch)).await;
 
         let validators = res.context("Should be able to query native token")?;
-        let futures = validators.into_iter().map(|validator_address| {
-            let self_ref = self;
-            async move {
-                let voting_power = self_ref.query_stake(&validator_address, epoch).await?;
-                let state = self_ref
+        let results: Vec<Result<Validator, anyhow::Error>> =
+            futures::stream::iter(validators.into_iter().map(|validator_address| async move {
+                let voting_power = self.query_stake(&validator_address, epoch).await?;
+                let state = self
                     .query_validator_state(&validator_address, epoch)
                     .await?;
                 Ok::<_, anyhow::Error>(Validator {
@@ -147,14 +147,18 @@ impl Rpc {
                     voting_power,
                     state,
                 })
-            }
-        });
+            }))
+            .buffer_unordered(30) // max 10 concurrent
+            .collect()
+            .await;
 
-        let results = futures::future::join_all(futures).await;
         let validators = results
             .into_iter()
-            .collect::<Result<Vec<_>, _>>()
-            .context("Should be able to query validator states")?;
+            .map(|res| {
+                res.context("context: Should be able to query validator")
+                    .unwrap()
+            })
+            .collect();
 
         Ok(validators)
     }
