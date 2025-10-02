@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::str::FromStr;
 use std::time::Duration;
 
@@ -137,6 +138,12 @@ impl CheckTrait for IbcCheck {
 
     fn is_continous(&self) -> bool {
         true
+    }
+}
+
+impl Display for IbcCheck {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "IbcCheck with {} channels", self.channels.len())
     }
 }
 

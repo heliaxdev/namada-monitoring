@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Display};
 
 use namada_sdk::{ibc, token::Amount};
 
@@ -145,5 +145,15 @@ impl CheckTrait for TransferLimitCheck {
 
     fn is_continous(&self) -> bool {
         false
+    }
+}
+
+impl Display for TransferLimitCheck {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "TransferLimitCheck with {} thresholds",
+            self.thresholds.len()
+        )
     }
 }

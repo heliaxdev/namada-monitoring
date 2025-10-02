@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use namada_sdk::tendermint::evidence;
 
 use crate::{
@@ -87,5 +89,11 @@ impl CheckTrait for SlashCheck {
 
     fn is_continous(&self) -> bool {
         false
+    }
+}
+
+impl Display for SlashCheck {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "SlashCheck")
     }
 }

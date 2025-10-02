@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{fmt::Display, time::Duration};
 
 use crate::shared::alert::Metadata;
 
@@ -40,6 +40,16 @@ impl CheckTrait for BlockCheck {
 
     fn is_continous(&self) -> bool {
         false
+    }
+}
+
+impl Display for BlockCheck {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "BlockCheck(estimated_block_time: {}, block_time_deviation: {})",
+            self.estimated_block_time, self.block_time_deviation
+        )
     }
 }
 

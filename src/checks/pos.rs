@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{fmt::Display, time::Duration};
 
 use super::{AppConfig, CheckTrait};
 
@@ -176,5 +176,20 @@ impl CheckTrait for PoSCheck {
 
     fn is_continous(&self) -> bool {
         false
+    }
+}
+
+impl Display for PoSCheck {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "PoSCheck(mininimum_one_third_validators: {}, mininimum_two_third_validators: {}, bond_increase_threshold: {}, unbond_increase_threshold: {}, consensus_threshold: {}, threshold_missed_votes: {})",
+            self.mininimum_one_third_validators,
+            self.mininimum_two_third_validators,
+            self.bond_increase_threshold,
+            self.unbond_increase_threshold,
+            self.consensus_threshold,
+            self.threshold_missed_votes
+        )
     }
 }

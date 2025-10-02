@@ -5,7 +5,7 @@ use crate::{
 };
 
 use super::{AppConfig, CheckTrait};
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Display};
 
 const FEE_CHECK_ID: &str = "fee_check";
 
@@ -80,5 +80,11 @@ impl CheckTrait for FeeCheck {
 
     fn is_continous(&self) -> bool {
         false
+    }
+}
+
+impl Display for FeeCheck {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "FeeCheck with {} thresholds", self.thresholds.len())
     }
 }

@@ -9,21 +9,23 @@ mod slashes;
 mod transfer_limit;
 mod tx;
 
+use std::fmt::Display;
+
 use async_trait::async_trait;
-use halt::HaltCheck;
 
 pub use crate::config::AppConfig;
 pub use crate::state::State;
 use crate::{
     checks::{
-        block::BlockCheck, fees::FeeCheck, gas::GasCheck, ibc::IbcCheck, ibc_limit::IbcLimitCheck,
-        pos::PoSCheck, slashes::SlashCheck, transfer_limit::TransferLimitCheck, tx::TxCheck,
+        block::BlockCheck, fees::FeeCheck, gas::GasCheck, halt::HaltCheck, ibc::IbcCheck,
+        ibc_limit::IbcLimitCheck, pos::PoSCheck, slashes::SlashCheck,
+        transfer_limit::TransferLimitCheck, tx::TxCheck,
     },
     shared::alert::Alert,
 };
 
 #[async_trait]
-pub trait CheckTrait: Send + Sync {
+pub trait CheckTrait: Send + Sync + Display {
     async fn check(&self, state: &State) -> Vec<Alert>;
     fn is_continous(&self) -> bool;
 }
@@ -68,5 +70,18 @@ impl CheckManager {
             }
         }
         results
+    }
+
+    pub fn get_checks(&self) -> &Vec<Box<dyn CheckTrait>> {
+        &self.checks
+    }
+}
+
+impl Display for CheckManager {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for check in &self.checks {
+            write!(f, "{}", check)?;
+        }
+        write!(f, "CheckManager with {} checks", self.checks.len())
     }
 }

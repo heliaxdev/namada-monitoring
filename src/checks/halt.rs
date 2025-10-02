@@ -1,4 +1,7 @@
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::{
+    fmt::Display,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
 use crate::shared::alert::{Alert, Metadata, Severity};
 
@@ -90,6 +93,16 @@ impl CheckTrait for HaltCheck {
 
     fn is_continous(&self) -> bool {
         true
+    }
+}
+
+impl Display for HaltCheck {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "HaltCheck(estimated_block_time: {}, halt_threshold: {})",
+            self.estimated_block_time, self.halt_threshold
+        )
     }
 }
 

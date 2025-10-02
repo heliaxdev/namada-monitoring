@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::shared::alert::Metadata;
 
 use super::{AppConfig, CheckTrait};
@@ -46,6 +48,16 @@ impl CheckTrait for GasCheck {
 
     fn is_continous(&self) -> bool {
         false
+    }
+}
+
+impl Display for GasCheck {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "GasCheck(gas_limit_threshold: {})",
+            self.gas_limit_threshold
+        )
     }
 }
 

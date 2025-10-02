@@ -1,4 +1,4 @@
 . .env
 export CHAIN_ID
 export RPC
-cargo run 
+RUST_BACKTRACE=1 cargo run 
