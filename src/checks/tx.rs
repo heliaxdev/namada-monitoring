@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use super::{AppConfig, CheckTrait};
 
 const TX_SECTIONS_CHECK_ID: &str = "tx_sections_check";
@@ -70,5 +72,15 @@ impl CheckTrait for TxCheck {
 
     fn is_continous(&self) -> bool {
         false
+    }
+}
+
+impl Display for TxCheck {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "TxCheck(threshold_sections: {}, threshold_batch: {})",
+            self.threshold_sections, self.threshold_batch
+        )
     }
 }

@@ -39,14 +39,20 @@ impl Manager {
             .start_exporter()
             .expect("Should be able to start metrics exporter");
 
+        let manager = Self {
+            metrics_exporter,
+            checks,
+            alerts,
+            rpc,
+            state: State::default(),
+        };
+
+        for check in manager.checks.get_checks() {
+            tracing::info!("Loaded check: {}", check);
+        }
+
         (
-            Arc::new(RwLock::new(Self {
-                metrics_exporter,
-                checks,
-                alerts,
-                rpc,
-                state: State::default(),
-            })),
+            Arc::new(RwLock::new(manager)),
             initial_block_height,
         )
     }

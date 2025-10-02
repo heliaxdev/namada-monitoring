@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use super::CheckTrait;
 
 const LIMIT_IBC_CHECK_ID: &str = "ibc_limit_check";
@@ -42,5 +44,11 @@ impl CheckTrait for IbcLimitCheck {
 
     fn is_continous(&self) -> bool {
         false
+    }
+}
+
+impl Display for IbcLimitCheck {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "IbcLimitCheck")
     }
 }
