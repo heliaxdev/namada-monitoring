@@ -28,6 +28,12 @@ async fn main() -> anyhow::Result<()> {
     let config = AppConfig::parse();
     config.log.init();
 
+    tracing::info!(
+        "Namada monitoring version {}, commit {}",
+        env!("CARGO_PKG_VERSION"),
+        env!("VERGEN_GIT_SHA")
+    );
+
     rlimit::increase_nofile_limit(10240).unwrap();
     rlimit::increase_nofile_limit(u64::MAX).unwrap();
 
