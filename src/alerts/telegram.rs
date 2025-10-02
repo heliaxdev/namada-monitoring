@@ -91,7 +91,7 @@ impl AlertTrait for TelegramAlert {
     }
 
     fn get_id(&self) -> String {
-        format!("telegram")
+        "telegram".to_string()
     }
 }
 
