@@ -1,5 +1,7 @@
 use serde::Deserialize;
 
+use crate::shared::alert::Severity;
+
 use super::block_explorer::BlockExplorer;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -11,6 +13,7 @@ pub struct Config {
     pub ibcs: Vec<Ibc>,
     pub tokens: Vec<TokenConfig>,
     pub slack: Option<SlackAlertConfig>,
+    pub telegram: Option<TelegramAlertConfig>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -58,6 +61,14 @@ pub struct SlackAlertConfig {
     pub slack_webhook: String,
     pub channel: String,
     pub mentions: Vec<String>,
+    pub minimum_severity: Option<Severity>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct TelegramAlertConfig {
+    pub telegram_token: String,
+    pub telegram_chat_id: String,
+    pub minimum_severity: Option<Severity>,
 }
 
 impl Config {

@@ -31,6 +31,7 @@ transfer_limit = 0
 slack_webhook = "example"
 channel = "example"
 mentions = ["@handle"]
+minimum_severity = "Low"
 
 [[ibc]]
 alias = "example"

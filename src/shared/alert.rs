@@ -1,6 +1,8 @@
 use std::time::Duration;
 
-#[derive(Default, Debug, Clone)]
+use serde::Deserialize;
+
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Eq, PartialOrd)]
 pub enum Severity {
     #[default]
     Low,
