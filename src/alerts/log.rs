@@ -10,7 +10,7 @@ pub struct Log {
 
 #[async_trait]
 impl AlertTrait for Log {
-    async fn send_alerts(&self, alert: Alert) -> Result<String, String> {
+    async fn send_alerts(&self, alert: Alert) -> Result<Option<String>, String> {
         let title = alert.title.clone();
         let description = alert.description.clone();
         let metadata = alert.metadata.clone();
@@ -32,7 +32,7 @@ impl AlertTrait for Log {
             println!("{}: {}", text.0, text.1);
         }
 
-        Ok(alert.check_id)
+        Ok(Some(alert.check_id))
     }
 
     async fn send_resolve(&self, alert: Alert, date: &str) -> Result<(), String> {

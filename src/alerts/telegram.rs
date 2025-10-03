@@ -4,7 +4,11 @@ use telegrama_rs::{ClientOptions, FormattingOptions, Response, Telegrama};
 
 use crate::{
     alerts::AlertTrait,
-    shared::{alert::Alert, block_explorer::BlockExplorer, config::TelegramAlertConfig},
+    shared::{
+        alert::{Alert, Severity},
+        block_explorer::BlockExplorer,
+        config::TelegramAlertConfig,
+    },
 };
 
 pub struct TelegramAlert {
@@ -12,11 +16,16 @@ pub struct TelegramAlert {
     pub telegram_token: String,
     pub telegram_chat_id: String,
     pub network_id: String,
+    pub minimum_severity: Option<Severity>,
 }
 
 #[async_trait]
 impl AlertTrait for TelegramAlert {
-    async fn send_alerts(&self, alert: Alert) -> Result<String, String> {
+    async fn send_alerts(&self, alert: Alert) -> Result<Option<String>, String> {
+        if alert.severity < self.minimum_severity.clone().unwrap_or(Severity::Low) {
+            return Ok(None);
+        }
+
         let block_explorer = self.block_explorer.clone();
 
         let title = alert.title.clone();
@@ -46,7 +55,7 @@ impl AlertTrait for TelegramAlert {
         let res = self.send_telegram_message(message).await;
 
         match res {
-            Ok(response) if response.ok => return Ok(alert.check_id),
+            Ok(response) if response.ok => return Ok(Some(alert.check_id)),
             Ok(response) => {
                 return Err(format!(
                     "Failed to send telegram alert, status: {}",
@@ -106,6 +115,7 @@ impl TelegramAlert {
             telegram_token: telegram_config.telegram_token,
             telegram_chat_id: telegram_config.telegram_chat_id,
             network_id,
+            minimum_severity: telegram_config.minimum_severity,
         }
     }
 

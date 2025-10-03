@@ -43,11 +43,16 @@ pub struct SlackAlert {
     pub channel: String,
     pub network_id: String,
     pub mentions: Vec<String>,
+    pub minimum_severity: Option<Severity>,
 }
 
 #[async_trait]
 impl AlertTrait for SlackAlert {
-    async fn send_alerts(&self, alert: Alert) -> Result<String, String> {
+    async fn send_alerts(&self, alert: Alert) -> Result<Option<String>, String> {
+        if alert.severity < self.minimum_severity.clone().unwrap_or(Severity::Low) {
+            return Ok(None);
+        }
+
         let block_explorer = self.block_explorer.clone();
 
         let title = alert.title.clone();
@@ -109,7 +114,7 @@ impl AlertTrait for SlackAlert {
             .await;
 
         match res {
-            Ok(response) if response.status().is_success() => return Ok(alert.check_id),
+            Ok(response) if response.status().is_success() => return Ok(Some(alert.check_id)),
             Ok(response) => {
                 return Err(format!(
                     "Failed to send slack alert, status: {:?}",
@@ -189,6 +194,7 @@ impl SlackAlert {
             channel: slack_config.channel,
             network_id,
             mentions: slack_config.mentions,
+            minimum_severity: slack_config.minimum_severity,
         }
     }
 }

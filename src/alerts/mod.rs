@@ -116,7 +116,7 @@ impl AlertManager {
 
 #[async_trait]
 pub trait AlertTrait: Send + Sync {
-    async fn send_alerts(&self, alert: Alert) -> Result<String, String>;
+    async fn send_alerts(&self, alert: Alert) -> Result<Option<String>, String>;
     async fn send_resolve(&self, alert: Alert, date: &str) -> Result<(), String>;
     fn get_block_explorer(&self) -> BlockExplorer;
     fn get_id(&self) -> String;
